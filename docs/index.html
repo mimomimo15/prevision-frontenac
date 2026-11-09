@@ -255,7 +255,7 @@ fetch('data.json?t=' + Date.now()).then(r => r.json()).then(d => {
     type: 'line',
     data: { datasets: [
       { label: 'Observé (horaire, 3 derniers jours)', data: hourly, borderColor: C_OBS, backgroundColor: C_OBS, pointRadius: 0, borderWidth: 2, tension: 0 },
-      { label: 'Prévision (moyenne journalière)', data: pred, borderColor: C_RED, backgroundColor: C_RED, pointRadius: 4, borderWidth: 2, tension: 0 },
+      { label: 'Prévision (moyenne journalière)', data: pred, borderColor: C_RED, backgroundColor: C_RED, pointRadius: pred.map((p, i) => (i === 0 && lastObs) ? 0 : 4), pointHoverRadius: pred.map((p, i) => (i === 0 && lastObs) ? 0 : 6), borderWidth: 2, tension: 0 },
       { label: 'SPINE (SHC, officiel)', data: sp, borderColor: C_SPINE, backgroundColor: C_SPINE, borderDash: [2, 3], pointRadius: 3, borderWidth: 1.5, tension: 0 }
     ] },
     options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'nearest', intersect: false }, parsing: false,
