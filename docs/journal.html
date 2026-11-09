@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="robots" content="noindex">
+<title>Journal de vague – privé</title>
+<style>
+  :root { --navy:#1F3864; --red:#C00000; --bg:#f6f7fa; --card:#ffffff; --text:#1b1b1b; --muted:#666; --head:#e9eef7; --line:#eeeeee; --warnbg:#fff4d6; --okbg:#e2efda; --input:#ffffff; --border:#cfd6e4; color-scheme: light dark; }
+  @media (prefers-color-scheme: dark) { :root { --navy:#9ab4e8; --red:#ff6b6b; --bg:#121418; --card:#1c1f26; --text:#e8e8e8; --muted:#a0a6b3; --head:#262b36; --line:#2c3140; --warnbg:#3a3010; --okbg:#1f3a22; --input:#13161c; --border:#3a4152; } header { background:#0e1a33; } }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; background:var(--bg); color:var(--text); }
+  header { background:var(--navy); color:#fff; padding:14px 16px; display:flex; justify-content:space-between; align-items:center; gap:10px; }
+  header h1 { margin:0; font-size:1.1rem; font-weight:600; } header a { color:#fff; font-size:.85rem; opacity:.9; }
+  main { max-width:900px; margin:0 auto; padding:12px; }
+  .card { background:var(--card); border-radius:12px; padding:14px 16px; box-shadow:0 1px 3px rgba(0,0,0,.08); margin-bottom:12px; }
+  h2 { font-size:1rem; margin:0 0 10px; color:var(--navy); }
+  label { display:block; font-size:.8rem; color:var(--muted); margin:8px 0 3px; }
+  input, select, textarea, button { font:inherit; }
+  input, select, textarea { width:100%; padding:9px 10px; border:1px solid var(--border); border-radius:8px; background:var(--input); color:var(--text); }
+  textarea { min-height:70px; }
+  .row { display:grid; grid-template-columns:1fr 1fr; gap:10px; } .row3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+  button { padding:10px 14px; border:0; border-radius:8px; background:var(--navy); color:#fff; font-weight:600; cursor:pointer; }
+  button.sec { background:transparent; color:var(--navy); border:1px solid var(--border); } button.danger { background:var(--red); }
+  button:disabled { opacity:.5; cursor:default; }
+  .actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+  .verdict { font-size:1.2rem; font-weight:700; padding:10px 12px; border-radius:8px; background:var(--okbg); margin:8px 0; }
+  .muted { color:var(--muted); font-size:.85rem; }
+  .warn { background:var(--warnbg); padding:10px 12px; border-radius:8px; font-size:.9rem; }
+  table { width:100%; border-collapse:collapse; font-size:.9rem; } th, td { padding:8px 6px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; } th { background:var(--head); color:var(--navy); font-size:.8rem; }
+  td.num { text-align:right; white-space:nowrap; }
+  .stars { color:#e0a800; letter-spacing:1px; }
+  .pill { display:inline-block; padding:2px 8px; border-radius:999px; background:var(--head); font-size:.75rem; margin-right:4px; }
+  .hidden { display:none; }
+  details summary { cursor:pointer; color:var(--navy); font-weight:600; }
+  @media (max-width:640px) { .row3 { grid-template-columns:1fr 1fr; } th:nth-child(6), td:nth-child(6) { display:none; } }
+</style>
+</head>
+<body>
+<header><h1>Journal de vague <span class="muted" style="color:#fff;opacity:.8;font-weight:400">· privé</span></h1><a href="./">← Prévisions</a></header>
+<main>
+
+<div id="setup" class="card">
+  <h2>Connexion au journal</h2>
+  <p class="muted">Tes sessions sont stockées dans un dépôt GitHub <strong>privé</strong> qui t’appartient. Le jeton reste sur cet appareil (navigateur) et n’est envoyé qu’à GitHub. À faire une fois par appareil.</p>
+  <div class="row">
+    <div><label>Propriétaire du dépôt (pseudo GitHub)</label><input id="cfgOwner" placeholder="mimomimo15"></div>
+    <div><label>Nom du dépôt privé</label><input id="cfgRepo" placeholder="journal-vague"></div>
+  </div>
+  <label>Jeton d’accès (fine-grained, Contents : read and write)</label><input id="cfgToken" type="password" placeholder="github_pat_…">
+  <label>Ton nom (pour savoir qui a noté la session)</label><input id="cfgWho" placeholder="Justin">
+  <div class="actions"><button id="btnConnect">Se connecter</button><button class="sec" id="btnForget">Oublier ce jeton</button></div>
+  <p id="setupMsg" class="muted"></p>
+</div>
+
+<div id="app" class="hidden">
+
+<div class="card">
+  <h2>Est-ce que la vague est belle maintenant ?</h2>
+  <div class="row3">
+    <div><label>Débit du jour (m³/s)</label><input id="vDebit" type="number" step="10"></div>
+    <div><label>Niveau du jour (m)</label><input id="vNiveau" type="number" step="0.01"></div>
+    <div><label>Vague / spot (vide = toutes)</label><select id="vSpot"><option value="">Toutes</option></select></div>
+  </div>
+  <details><summary>Tolérances</summary>
+    <div class="row"><div><label>Débit ± (m³/s)</label><input id="vTolQ" type="number" value="150"></div><div><label>Niveau ± (m) — vide = ignorer le niveau</label><input id="vTolN" type="number" step="0.01" value="0.05"></div></div>
+  </details>
+  <div class="actions"><button class="sec" id="btnLive">Reprendre les conditions en direct</button></div>
+  <div id="verdict" class="verdict">Entre le débit du jour</div>
+  <div id="verdictDetail" class="muted"></div>
+  <div id="closest"></div>
+</div>
+
+<div class="card">
+  <h2>Nouvelle session</h2>
+  <div class="row3">
+    <div><label>Date</label><input id="fDate" type="date"></div>
+    <div><label>Vague / spot</label><input id="fSpot" list="spotList" placeholder="H67"><datalist id="spotList"></datalist></div>
+    <div><label>Note (1 à 5)</label><select id="fNote"><option value="">–</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select></div>
+  </div>
+  <div class="row3">
+    <div><label>Débit (m³/s)</label><input id="fDebit" type="number" step="10"></div>
+    <div><label>Niveau (m)</label><input id="fNiveau" type="number" step="0.01"></div>
+    <div><label>Qui</label><input id="fWho"></div>
+  </div>
+  <div class="row">
+    <div><label>Forme de la vague</label><select id="fForme"></select></div>
+    <div><label>Forme 2 (optionnel)</label><select id="fForme2"><option value="">–</option></select></div>
+  </div>
+  <label>Commentaires</label><textarea id="fComment"></textarea>
+  <div class="actions"><button id="btnSave">Enregistrer la session</button><button class="sec" id="btnCancel" style="display:none">Annuler la modification</button></div>
+  <p id="saveMsg" class="muted"></p>
+</div>
+
+<div class="card">
+  <h2>Ta plage idéale</h2>
+  <div class="row"><div><label>Note minimale d’une « bonne » session</label><input id="pMin" type="number" min="1" max="5" value="4"></div><div><label>Vague / spot (vide = toutes)</label><select id="pSpot"><option value="">Toutes</option></select></div></div>
+  <div id="plage" class="muted" style="margin-top:8px"></div>
+</div>
+
+<div class="card">
+  <h2>Sessions <span id="count" class="pill"></span></h2>
+  <div class="row"><div><label>Filtrer par personne</label><select id="lWho"><option value="">Tous</option></select></div><div><label>Filtrer par spot</label><select id="lSpot"><option value="">Tous</option></select></div></div>
+  <div style="overflow-x:auto;margin-top:8px"><table><thead><tr><th>Date</th><th>Spot</th><th>Débit</th><th>Niveau</th><th>Note</th><th>Forme</th><th>Commentaire</th><th></th></tr></thead><tbody id="rows"></tbody></table></div>
+  <div class="actions"><button class="sec" id="btnExport">Exporter en CSV (Excel)</button><label class="sec" style="display:inline-block;padding:10px 14px;border:1px solid var(--border);border-radius:8px;cursor:pointer;margin:0">Importer un CSV<input id="fileImport" type="file" accept=".csv,text/csv" class="hidden"></label><button class="sec" id="btnShapes">Formes de vague…</button></div>
+  <div id="shapesBox" class="hidden" style="margin-top:8px"><label>Formes (une par ligne)</label><textarea id="shapesTxt"></textarea><div class="actions"><button id="btnShapesSave">Enregistrer les formes</button></div></div>
+  <p id="listMsg" class="muted"></p>
+</div>
+
+</div>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+const LS = { get: k => { try { return localStorage.getItem('jv_' + k) || ''; } catch (e) { return ''; } }, set: (k, v) => { try { localStorage.setItem('jv_' + k, v); } catch (e) {} }, del: k => { try { localStorage.removeItem('jv_' + k); } catch (e) {} } };
+const DEFAULT_SHAPES = ['Verte', 'Green', 'Steep', 'Molle', 'Mousseuse', 'Flat'];
+let cfg = { owner: LS.get('owner') || 'mimomimo15', repo: LS.get('repo') || 'journal-vague', token: LS.get('token'), who: LS.get('who') };
+let data = { version: 1, shapes: DEFAULT_SHAPES, sessions: [] }, sha = null, editing = null, live = { debit: null, niveau: null };
+
+// ---------------- GitHub (dépôt privé)
+const api = () => `https://api.github.com/repos/${cfg.owner}/${cfg.repo}/contents/sessions.json`;
+const hdr = () => ({ Authorization: 'Bearer ' + cfg.token, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' });
+const b64e = s => btoa(unescape(encodeURIComponent(s))), b64d = s => decodeURIComponent(escape(atob(s.replace(/\n/g, ''))));
+async function load() {
+  const r = await fetch(api(), { headers: hdr(), cache: 'no-store' });
+  if (r.status === 404) { data = { version: 1, shapes: DEFAULT_SHAPES, sessions: [] }; sha = null; return 'nouveau'; }
+  if (!r.ok) throw new Error(r.status === 401 ? 'Jeton refusé (401)' : r.status === 403 ? 'Accès refusé (403) : le jeton n’a pas accès à ce dépôt' : 'Erreur GitHub ' + r.status);
+  const j = await r.json(); data = JSON.parse(b64d(j.content)); sha = j.sha;
+  if (!data.shapes || !data.shapes.length) data.shapes = DEFAULT_SHAPES; data.sessions = data.sessions || [];
+  return 'ok';
+}
+async function save(msg) {
+  const body = { message: msg, content: b64e(JSON.stringify(data, null, 1)) }; if (sha) body.sha = sha;
+  let r = await fetch(api(), { method: 'PUT', headers: hdr(), body: JSON.stringify(body) });
+  if (r.status === 409 || r.status === 422) { // quelqu'un d'autre a écrit entre-temps : recharger, refusionner les sessions, réessayer
+    const mine = data.sessions; await load();
+    const ids = new Set(data.sessions.map(s => s.id)); for (const s of mine) if (!ids.has(s.id)) data.sessions.push(s);
+    body.content = b64e(JSON.stringify(data, null, 1)); body.sha = sha;
+    r = await fetch(api(), { method: 'PUT', headers: hdr(), body: JSON.stringify(body) });
+  }
+  if (!r.ok) throw new Error('Enregistrement refusé (' + r.status + ')');
+  sha = (await r.json()).content.sha;
+}
+
+// ---------------- conditions en direct (site + SHC)
+async function fetchLive() {
+  try { const d = await fetch('data.json?t=' + Date.now()).then(r => r.json()); if (d.discharge) live.debit = d.discharge.value; if (d.live) live.niveau = d.live.value; } catch (e) {}
+  try {
+    const t1 = new Date(), t0 = new Date(t1 - 3 * 3600e3), iso = x => x.toISOString().slice(0, 19) + 'Z';
+    const ctrl = new AbortController(); setTimeout(() => ctrl.abort(), 5000);
+    const j = await fetch(`https://api-iwls.dfo-mpo.gc.ca/api/v1/stations/5cebf1e03d0f4a073c4bbdee/data?time-series-code=wlo&from=${iso(t0)}&to=${iso(t1)}&resolution=FIFTEEN_MINUTES`, { signal: ctrl.signal }).then(r => r.json());
+    if (j.length) live.niveau = j[j.length - 1].value;
+  } catch (e) {}
+  try {
+    const ctrl = new AbortController(); setTimeout(() => ctrl.abort(), 5000);
+    const j = await fetch('https://api.weather.gc.ca/collections/hydrometric-realtime/items?STATION_NUMBER=02OA016&f=json&limit=6&sortby=-DATETIME&properties=DATETIME,DISCHARGE', { signal: ctrl.signal }).then(r => r.json());
+    const f = j.features.map(x => x.properties).find(p => p.DISCHARGE != null); if (f) live.debit = Math.round(f.DISCHARGE);
+  } catch (e) {}
+}
+function applyLive() { if (live.debit != null) { $('vDebit').value = live.debit; $('fDebit').value = live.debit; } if (live.niveau != null) { $('vNiveau').value = (+live.niveau).toFixed(2); $('fNiveau').value = (+live.niveau).toFixed(2); } verify(); }
+
+// ---------------- logique « Vérifier » (identique au classeur)
+function verify() {
+  const q = parseFloat($('vDebit').value), n = $('vNiveau').value === '' ? null : parseFloat($('vNiveau').value), spot = $('vSpot').value;
+  const tq = parseFloat($('vTolQ').value) || 150, tn = $('vTolN').value === '' ? null : parseFloat($('vTolN').value);
+  const useN = n != null && tn != null;
+  if (isNaN(q)) { $('verdict').textContent = 'Entre le débit du jour'; $('verdictDetail').textContent = ''; $('closest').innerHTML = ''; return; }
+  const cand = data.sessions.filter(s => s.note && s.debit != null && (!spot || s.spot === spot)).map(s => {
+    const dq = (s.debit - q) / tq; const dn = useN ? (s.niveau == null ? 1 : (s.niveau - n) / tn) : 0;
+    return { s, dist: Math.sqrt(dq * dq + dn * dn), inRange: Math.abs(s.debit - q) <= tq && (!useN || (s.niveau != null && Math.abs(s.niveau - n) <= tn)) };
+  });
+  const inR = cand.filter(c => c.inRange); const nIn = inR.length;
+  const mean = nIn ? inR.reduce((a, c) => a + +c.s.note, 0) / nIn : null;
+  let v = nIn === 0 ? 'Pas encore de session à ces conditions — va voir et note-la !' : mean >= 4 ? '🔥 Ça devrait marcher — vas-y !' : mean >= 3 ? '👍 Correct, ça peut valoir le détour' : mean >= 2 ? '😐 Bof, probablement moyen' : '👎 Probablement pas surfable';
+  $('verdict').textContent = v;
+  $('verdictDetail').textContent = nIn ? `${nIn} session${nIn > 1 ? 's' : ''} à ± ${tq} m³/s${useN ? ' et ± ' + tn + ' m' : ''} · note moyenne ${mean.toFixed(1)} / 5` : (cand.length ? `${cand.length} session(s) au total, aucune dans la plage` : '');
+  const top = cand.sort((a, b) => a.dist - b.dist).slice(0, 3);
+  $('closest').innerHTML = top.length ? '<p class="muted" style="margin:8px 0 4px">Les 3 sessions les plus proches :</p>' + top.map(c => `<div class="muted">• ${c.s.date} · ${c.s.spot || ''} · ${c.s.debit} m³/s${c.s.niveau != null ? ' · ' + c.s.niveau.toFixed(2) + ' m' : ''} · <span class="stars">${'★'.repeat(+c.s.note)}</span> ${c.s.forme || ''}${c.s.commentaire ? ' — ' + esc(c.s.commentaire) : ''}</div>`).join('') : '';
+}
+function plage() {
+  const min = parseFloat($('pMin').value) || 4, spot = $('pSpot').value;
+  const all = data.sessions.filter(s => s.note && (!spot || s.spot === spot)), good = all.filter(s => +s.note >= min && s.debit != null);
+  if (!good.length) { $('plage').textContent = `${all.length} session(s) notée(s) · aucune bonne session (note ≥ ${min}) pour l’instant`; return; }
+  const qs = good.map(s => s.debit), ns = good.filter(s => s.niveau != null).map(s => s.niveau);
+  $('plage').innerHTML = `${all.length} sessions notées · <strong>${good.length} bonnes</strong> (note ≥ ${min})<br>Débit des bonnes sessions : <strong>${Math.min(...qs)} → ${Math.max(...qs)} m³/s</strong> (moyenne ${Math.round(qs.reduce((a, b) => a + b, 0) / qs.length)})` + (ns.length ? `<br>Niveau des bonnes sessions : <strong>${Math.min(...ns).toFixed(2)} → ${Math.max(...ns).toFixed(2)} m</strong>` : '');
+}
+
+// ---------------- liste, formulaire
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+function fillSelects() {
+  const spots = [...new Set(data.sessions.map(s => s.spot).filter(Boolean))].sort(), whos = [...new Set(data.sessions.map(s => s.qui).filter(Boolean))].sort();
+  for (const id of ['vSpot', 'pSpot', 'lSpot']) { const el = $(id), cur = el.value; el.innerHTML = '<option value="">' + (id === 'lSpot' ? 'Tous' : 'Toutes') + '</option>' + spots.map(s => `<option>${esc(s)}</option>`).join(''); el.value = cur; }
+  $('spotList').innerHTML = spots.map(s => `<option value="${esc(s)}">`).join('');
+  const lw = $('lWho'), cw = lw.value; lw.innerHTML = '<option value="">Tous</option>' + whos.map(w => `<option>${esc(w)}</option>`).join(''); lw.value = cw;
+  const f1 = $('fForme'), f2 = $('fForme2'), c1 = f1.value, c2 = f2.value;
+  f1.innerHTML = '<option value="">–</option>' + data.shapes.map(s => `<option>${esc(s)}</option>`).join(''); f2.innerHTML = f1.innerHTML; f1.value = c1; f2.value = c2;
+}
+function renderList() {
+  const who = $('lWho').value, spot = $('lSpot').value;
+  const rows = data.sessions.filter(s => (!who || s.qui === who) && (!spot || s.spot === spot)).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  $('count').textContent = rows.length + ' / ' + data.sessions.length;
+  $('rows').innerHTML = rows.map(s => `<tr><td>${s.date || ''}<br><span class="muted">${esc(s.qui || '')}</span></td><td>${esc(s.spot || '')}</td><td class="num">${s.debit ?? ''}</td><td class="num">${s.niveau != null ? s.niveau.toFixed(2) : ''}</td><td><span class="stars">${'★'.repeat(+s.note || 0)}</span></td><td>${esc(s.forme || '')}${s.forme2 ? ' / ' + esc(s.forme2) : ''}</td><td>${esc(s.commentaire || '')}</td><td style="white-space:nowrap"><button class="sec" data-edit="${s.id}" style="padding:4px 8px">✎</button> <button class="danger" data-del="${s.id}" style="padding:4px 8px">✕</button></td></tr>`).join('');
+}
+function refresh() { fillSelects(); renderList(); plage(); verify(); }
+function resetForm() { editing = null; $('fDate').value = new Date().toLocaleDateString('fr-CA'); $('fSpot').value = data.sessions.length ? data.sessions[data.sessions.length - 1].spot || '' : ''; $('fNote').value = ''; $('fForme').value = ''; $('fForme2').value = ''; $('fComment').value = ''; $('fWho').value = cfg.who; $('btnSave').textContent = 'Enregistrer la session'; $('btnCancel').style.display = 'none'; applyLive(); }
+async function saveSession() {
+  const s = { id: editing || (Date.now().toString(36) + Math.random().toString(36).slice(2, 6)), date: $('fDate').value, spot: $('fSpot').value.trim(), debit: $('fDebit').value === '' ? null : Math.round(+$('fDebit').value), niveau: $('fNiveau').value === '' ? null : +$('fNiveau').value, note: $('fNote').value ? +$('fNote').value : null, forme: $('fForme').value, forme2: $('fForme2').value, commentaire: $('fComment').value.trim(), qui: $('fWho').value.trim() || cfg.who, maj: new Date().toISOString() };
+  if (!s.date || s.debit == null || !s.note) { $('saveMsg').textContent = 'Il faut au moins la date, le débit et la note.'; return; }
+  if (s.qui && s.qui !== cfg.who) { cfg.who = s.qui; LS.set('who', s.qui); }
+  const i = data.sessions.findIndex(x => x.id === s.id); if (i >= 0) data.sessions[i] = s; else data.sessions.push(s);
+  $('btnSave').disabled = true; $('saveMsg').textContent = 'Enregistrement…';
+  try { await save((i >= 0 ? 'Modification' : 'Session') + ' ' + s.date + ' ' + (s.spot || '')); $('saveMsg').textContent = 'Enregistré ✓'; resetForm(); refresh(); }
+  catch (e) { $('saveMsg').textContent = e.message; } finally { $('btnSave').disabled = false; }
+}
+$('rows').addEventListener('click', async ev => {
+  const b = ev.target.closest('button'); if (!b) return;
+  if (b.dataset.edit) { const s = data.sessions.find(x => x.id === b.dataset.edit); if (!s) return; editing = s.id; $('fDate').value = s.date; $('fSpot').value = s.spot || ''; $('fDebit').value = s.debit ?? ''; $('fNiveau').value = s.niveau ?? ''; $('fNote').value = s.note || ''; $('fForme').value = s.forme || ''; $('fForme2').value = s.forme2 || ''; $('fComment').value = s.commentaire || ''; $('fWho').value = s.qui || cfg.who; $('btnSave').textContent = 'Enregistrer la modification'; $('btnCancel').style.display = ''; window.scrollTo({ top: $('fDate').getBoundingClientRect().top + window.scrollY - 80, behavior: 'smooth' }); }
+  if (b.dataset.del) { const s = data.sessions.find(x => x.id === b.dataset.del); if (!s) return; $('listMsg').textContent = `Supprimer la session du ${s.date} ? `; const ok = document.createElement('button'); ok.className = 'danger'; ok.textContent = 'Oui, supprimer'; ok.style.padding = '4px 8px'; ok.onclick = async () => { data.sessions = data.sessions.filter(x => x.id !== s.id); try { await save('Suppression ' + s.date); $('listMsg').textContent = 'Supprimée.'; refresh(); } catch (e) { $('listMsg').textContent = e.message; } }; $('listMsg').appendChild(ok); }
+});
+$('btnCancel').onclick = () => { resetForm(); $('saveMsg').textContent = ''; };
+$('btnSave').onclick = saveSession;
+$('btnLive').onclick = async () => { await fetchLive(); applyLive(); };
+for (const id of ['vDebit', 'vNiveau', 'vSpot', 'vTolQ', 'vTolN']) $(id).addEventListener('input', verify);
+for (const id of ['pMin', 'pSpot']) $(id).addEventListener('input', plage);
+for (const id of ['lWho', 'lSpot']) $(id).addEventListener('change', renderList);
+
+// ---------------- export / import / formes
+$('btnExport').onclick = () => {
+  const cols = ['date', 'spot', 'debit', 'niveau', 'note', 'forme', 'forme2', 'commentaire', 'qui'];
+  const csv = '﻿' + ['Date;Vague / spot;Débit (m³/s);Niveau (m);Note (1-5);Forme de la vague;Forme 2;Commentaires;Qui'].concat(data.sessions.map(s => cols.map(c => { let v = s[c] ?? ''; if (typeof v === 'number') v = String(v).replace('.', ','); return '"' + String(v).replace(/"/g, '""') + '"'; }).join(';'))).join('\r\n');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })); a.download = 'journal_vague.csv'; a.click();
+};
+$('fileImport').addEventListener('change', async ev => {
+  const file = ev.target.files[0]; if (!file) return;
+  const txt = (await file.text()).replace(/^﻿/, ''); const sep = (txt.split('\n')[0].match(/;/g) || []).length >= (txt.split('\n')[0].match(/,/g) || []).length ? ';' : ',';
+  const parse = line => { const out = []; let cur = '', q = false; for (let i = 0; i < line.length; i++) { const c = line[i]; if (q) { if (c === '"' && line[i + 1] === '"') { cur += '"'; i++; } else if (c === '"') q = false; else cur += c; } else if (c === '"') q = true; else if (c === sep) { out.push(cur); cur = ''; } else cur += c; } out.push(cur); return out; };
+  const lines = txt.split(/\r?\n/).filter(l => l.trim()); const head = parse(lines[0]).map(h => h.toLowerCase());
+  const col = re => head.findIndex(h => re.test(h));
+  const ci = { date: col(/date/), spot: col(/vague|spot/), debit: col(/d[ée]bit/), niveau: col(/niveau/), note: col(/note/), forme: col(/forme de|^forme$/), forme2: col(/forme 2/), com: col(/comment/), qui: col(/qui/) };
+  const num = v => { if (v == null || v === '') return null; const x = parseFloat(String(v).replace(',', '.')); return isNaN(x) ? null : x; };
+  const toDate = v => { v = String(v).trim(); const m = v.match(/^(\d{4})-(\d{2})-(\d{2})/); if (m) return v.slice(0, 10); const m2 = v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/); if (m2) return `${m2[3]}-${m2[2].padStart(2, '0')}-${m2[1].padStart(2, '0')}`; const d = new Date(v); return isNaN(d) ? v : d.toLocaleDateString('fr-CA'); };
+  let n = 0;
+  for (const line of lines.slice(1)) { const f = parse(line); const debit = num(f[ci.debit]), note = num(f[ci.note]); if (ci.date < 0 || !f[ci.date] || debit == null || !note) continue;
+    const s = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), date: toDate(f[ci.date]), spot: (f[ci.spot] || '').trim(), debit: Math.round(debit), niveau: num(f[ci.niveau]), note: Math.round(note), forme: (f[ci.forme] || '').trim(), forme2: (f[ci.forme2] || '').trim(), commentaire: (f[ci.com] || '').trim(), qui: ((ci.qui >= 0 && f[ci.qui]) || cfg.who || '').trim(), maj: new Date().toISOString() };
+    if (!data.sessions.some(x => x.date === s.date && x.spot === s.spot && x.debit === s.debit && x.note === s.note)) { data.sessions.push(s); n++; }
+    for (const sh of [s.forme, s.forme2]) if (sh && !data.shapes.includes(sh)) data.shapes.push(sh); }
+  ev.target.value = '';
+  if (!n) { $('listMsg').textContent = 'Aucune nouvelle session trouvée dans ce fichier.'; return; }
+  try { await save('Import de ' + n + ' session(s)'); $('listMsg').textContent = n + ' session(s) importée(s) ✓'; refresh(); } catch (e) { $('listMsg').textContent = e.message; }
+});
+$('btnShapes').onclick = () => { $('shapesBox').classList.toggle('hidden'); $('shapesTxt').value = data.shapes.join('\n'); };
+$('btnShapesSave').onclick = async () => { data.shapes = $('shapesTxt').value.split('\n').map(s => s.trim()).filter(Boolean); try { await save('Formes de vague'); $('shapesBox').classList.add('hidden'); fillSelects(); $('listMsg').textContent = 'Formes enregistrées ✓'; } catch (e) { $('listMsg').textContent = e.message; } };
+
+// ---------------- connexion
+async function connect() {
+  cfg.owner = $('cfgOwner').value.trim() || cfg.owner; cfg.repo = $('cfgRepo').value.trim() || cfg.repo; cfg.token = $('cfgToken').value.trim() || cfg.token; cfg.who = $('cfgWho').value.trim() || cfg.who;
+  if (!cfg.token) { $('setupMsg').textContent = 'Il manque le jeton.'; return; }
+  $('setupMsg').textContent = 'Connexion…';
+  try {
+    const st = await load();
+    LS.set('owner', cfg.owner); LS.set('repo', cfg.repo); LS.set('token', cfg.token); LS.set('who', cfg.who);
+    if (st === 'nouveau') { await save('Création du journal'); }
+    $('setup').classList.add('hidden'); $('app').classList.remove('hidden');
+    await fetchLive(); resetForm(); refresh();
+  } catch (e) { $('setupMsg').textContent = e.message + (e.message.includes('403') ? ' — vérifie que le dépôt existe et que le jeton a « Contents : Read and write » sur ce dépôt.' : ''); }
+}
+$('btnConnect').onclick = connect;
+$('btnForget').onclick = () => { LS.del('token'); cfg.token = ''; $('cfgToken').value = ''; $('setupMsg').textContent = 'Jeton oublié sur cet appareil.'; $('app').classList.add('hidden'); $('setup').classList.remove('hidden'); };
+$('cfgOwner').value = cfg.owner; $('cfgRepo').value = cfg.repo; $('cfgWho').value = cfg.who; $('cfgToken').value = cfg.token;
+if (cfg.token) connect();
+</script>
+</body>
+</html>
