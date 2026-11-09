@@ -233,6 +233,39 @@ def main():
                 v = list(errs.values()); stat_skill = {"rmse_J1": round((sum(x * x for x in v) / len(v)) ** 0.5, 3), "n": len(v)}
     except FileNotFoundError:
         pass
+    # ------------------------------------------------------------------ validation.json : rejeu complet sur l'historique du site
+    # pour chaque jour observé et chaque échéance k, la prévision que le modèle émettait k jours plus tôt (données de ce
+    # jour-là seulement) et, quand elle existe, la prévision SPINE archivée le même jour ; alimente la page Validation.
+    try:
+        sp_runs = {}
+        try:
+            with open(os.path.join(DOCS, "spine_archive.csv"), newline="", encoding="utf-8") as f:
+                for r in csv.DictReader(f):
+                    iloc = (dt.datetime.strptime(r["issued_utc"], "%Y-%m-%dT%H:%MZ") + pf.TZ).date()
+                    sp_runs[(iloc, dt.date.fromisoformat(r["target_date"]))] = float(r["level_zc"])
+        except FileNotFoundError:
+            pass
+        replay = {}
+        for Jp in sorted(hist):
+            if Jp < d1 - dt.timedelta(days=400): continue      # le rejeu plus ancien est dans validation_hist.json (statique)
+            Jp1 = Jp - dt.timedelta(days=1); Jp2 = Jp - dt.timedelta(days=2)
+            if Jp1 not in hist or any(hist[x][k] is None for x in (Jp, Jp1) for k in ("frontenac_zc", "pointeclaire_igld85", "steanne_igld85")): continue
+            hp, hp1 = hist[Jp], hist[Jp1]
+            try:
+                if all(x in br for x in (Jp, Jp1, Jp2)):
+                    fcp = pf.forecast_v2(Jp, hp["frontenac_zc"], hp["pointeclaire_igld85"], hp1["pointeclaire_igld85"], hp["steanne_igld85"], hp1["steanne_igld85"], br[Jp], br[Jp1], br[Jp2])
+                else:
+                    fcp = pf.forecast(Jp, hp["frontenac_zc"], hp["pointeclaire_igld85"], hp1["pointeclaire_igld85"], hp["steanne_igld85"], hp1["steanne_igld85"])[1]
+            except Exception:
+                continue
+            for k, (d, l, mg) in enumerate(fcp, 1):
+                r = replay.setdefault(d, {"m": [None] * 7, "s": [None] * 7}); r["m"][k - 1] = round(l, 3)
+                if (Jp + dt.timedelta(days=1), d) in sp_runs: r["s"][k - 1] = round(sp_runs[(Jp + dt.timedelta(days=1), d)], 3)   # SPINE archivée le lendemain de J (jour d'émission réel)
+        vdays = [{"date": d.isoformat(), "obs": round(hist[d]["frontenac_zc"], 3), "ice": int(pf.is_ice(d)), **replay[d]} for d in sorted(replay) if d in hist and hist[d]["frontenac_zc"] is not None]
+        with open(os.path.join(DOCS, "validation.json"), "w", encoding="utf-8") as f:
+            json.dump({"generated": dt.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"), "days": vdays}, f, separators=(",", ":"))
+    except Exception as e:
+        print("validation.json impossible :", e)
     # ------------------------------------------------------------------ combinaison automatique modèle + SPINE
     # Pour chaque échéance k (jours entre l'émission, en heure locale, et la date visée), on relit les archives et on
     # ajuste obs ≈ a + w·modèle + (1−w)·SPINE sur les couples où le niveau réel est connu. Dès 30 couples, la prévision

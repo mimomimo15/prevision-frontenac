@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Validation – modèle vs niveau mesuré (Frontenac)</title>
+<meta name="robots" content="noindex">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+<style>
+  :root { --green:#1a8f3c; --bad:#C00000; --navy:#1F3864; --red:#D9730D; --grey:#8a8a8a; --bg:#f6f7fa; --card:#ffffff; --text:#1b1b1b; --muted:#666; --head:#e9eef7; --line:#eeeeee; --grid:#e5e5e5; --grid0:#bbbbbb; --obs:#1F3864; --spine:#2E75B6; --warnbg:#fff4d6; color-scheme: light dark; }
+  @media (prefers-color-scheme: dark) {
+    :root { --green:#5fd37f; --bad:#ff6b6b; --navy:#9ab4e8; --red:#ffa94d; --bg:#121418; --card:#1c1f26; --text:#e8e8e8; --muted:#a0a6b3; --head:#262b36; --line:#2c3140; --grid:#2c3140; --grid0:#4a5063; --obs:#9ab4e8; --spine:#6fa8ff; --warnbg:#3a3010; }
+    header { background:#0e1a33; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background:var(--bg); color:var(--text); }
+  header { background:var(--navy); color:#fff; padding:14px 16px; }
+  header h1 { margin:0; font-size:1.2rem; font-weight:600; } header p { margin:4px 0 0; font-size:.85rem; opacity:.85; }
+  .hwrap { max-width:980px; margin:0 auto; display:flex; justify-content:space-between; align-items:center; gap:14px; flex-wrap:wrap; }
+  .hbtns { display:flex; gap:8px; }
+  .jbtn { display:inline-block; background:#fff; color:var(--navy); font-weight:700; font-size:1rem; padding:11px 18px; border-radius:10px; text-decoration:none; box-shadow:0 2px 6px rgba(0,0,0,.2); white-space:nowrap; } .jbtn:hover { background:#e9eef7; }
+  main { max-width:980px; margin:0 auto; padding:16px; }
+  .card { background:var(--card); border-radius:12px; padding:14px 16px; box-shadow:0 1px 3px rgba(0,0,0,.08); margin-bottom:14px; }
+  .ctl { display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:10px; }
+  label { display:block; font-size:.8rem; color:var(--muted); margin-bottom:4px; text-transform:uppercase; letter-spacing:.04em; }
+  select { width:100%; padding:9px 10px; border:1px solid var(--line); border-radius:8px; background:var(--card); color:var(--text); font-size:1rem; }
+  .stats { display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:10px; }
+  .stat { background:var(--card); border-radius:12px; padding:12px 14px; box-shadow:0 1px 3px rgba(0,0,0,.08); }
+  .stat .l { font-size:.75rem; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; } .stat .v { font-size:1.5rem; font-weight:700; margin-top:2px; color:var(--navy); } .stat .s { font-size:.8rem; color:var(--muted); }
+  .stat.sp .v { color:var(--spine, #4a90d9); }
+  .ctitle { font-weight:600; color:var(--navy); margin-bottom:6px; }
+  .chart-wrap { background:var(--card); border-radius:12px; padding:14px 16px; box-shadow:0 1px 3px rgba(0,0,0,.08); margin-bottom:14px; }
+  canvas { width:100% !important; } #chart { height:340px !important; } #hist { height:220px !important; }
+  table { width:100%; border-collapse:collapse; background:var(--card); border-radius:12px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,.08); font-size:.92rem; }
+  th, td { padding:8px 10px; text-align:right; border-bottom:1px solid var(--line); } th:first-child, td:first-child { text-align:left; } th { background:var(--head); color:var(--navy); font-weight:600; }
+  td.ok { color:var(--green); font-weight:600; } td.mid { color:var(--red); font-weight:600; } td.bad { color:var(--bad); font-weight:600; }
+  .note { font-size:.85rem; color:var(--muted); line-height:1.5; }
+  footer { font-size:.76rem; color:var(--muted); text-align:center; padding:8px 16px 20px; line-height:1.5; max-width:980px; margin:0 auto; }
+  @media (max-width:640px) {
+    header h1 { font-size:1rem; } .jbtn { padding:9px 12px; font-size:.9rem; }
+    #chart { height:260px !important; } #hist { height:180px !important; }
+    .stat .v { font-size:1.25rem; } th, td { padding:7px 6px; font-size:.85rem; } th:nth-child(5), td:nth-child(5), th:nth-child(6), td:nth-child(6) { display:none; }
+  }
+</style>
+</head>
+<body>
+<header><div class="hwrap"><div><h1>Validation – modèle vs niveau mesuré</h1><p>Chaque prévision est comparée au niveau réellement observé à Frontenac (moyennes journalières, zéro des cartes).</p></div>
+<div class="hbtns"><a class="jbtn" href="./">🌊 Prévisions</a><a class="jbtn" href="journal.html">📓 Journal</a></div></div></header>
+<main>
+<div class="card"><div class="ctl">
+  <div><label>Échéance</label><select id="selK"><option value="1">J+1 (lendemain)</option><option value="2">J+2</option><option value="3">J+3</option><option value="4">J+4</option><option value="5">J+5</option><option value="6">J+6</option><option value="7">J+7</option></select></div>
+  <div><label>Période</label><select id="selP"><option value="30">30 derniers jours</option><option value="90" selected>90 derniers jours</option><option value="365">1 an</option><option value="0">Tout (depuis 2019)</option></select></div>
+  <div><label>Glace</label><select id="selIce"><option value="free" selected>Hors glace seulement</option><option value="all">Tous les jours</option><option value="ice">Glace seulement</option></select></div>
+</div></div>
+<div class="stats" id="stats"></div>
+<div class="chart-wrap" style="margin-top:14px"><div class="ctitle" id="ctitle"></div><canvas id="chart"></canvas></div>
+<div class="chart-wrap"><div class="ctitle">Répartition des écarts (mesuré − prévu)</div><canvas id="hist"></canvas></div>
+<div class="card" style="padding:0"><table><thead><tr><th>Jour</th><th>Mesuré</th><th>Prévu</th><th>Écart</th><th>SPINE</th><th>Écart SPINE</th></tr></thead><tbody id="rows"></tbody></table></div>
+<p class="note"><strong>Comment c'est calculé :</strong> pour chaque jour, « prévu » est la prévision que le modèle émettait <em>k</em> jours plus tôt, avec les seules données disponibles ce jour-là (rejeu, sans l'ajustement intrajournalier). Depuis le 9 novembre 2026, la prévision SPINE archivée le même jour est comparée elle aussi. La période 2019–2024 a servi à calibrer le modèle (comparaison partiellement optimiste) ; 2025 et le direct sont indépendants. Vert : écart ≤ 5 cm ; orange : ≤ 10 cm ; rouge : au-delà.</p>
+</main>
+<footer>Données : Service hydrographique du Canada et ECCC (Licence du gouvernement ouvert – Canada). Outil indicatif, sans garantie.</footer>
+<script>
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const C_OBS = css('--obs') || '#1F3864', C_RED = css('--red') || '#D9730D', C_SP = css('--spine') || '#4a90d9', C_GRID = css('--grid'), C_TXT = css('--muted');
+Chart.defaults.color = C_TXT; Chart.defaults.borderColor = C_GRID;
+const MOB = window.matchMedia('(max-width: 640px)').matches;
+const fmt = v => (v >= 0 ? '+' : '') + v.toFixed(2) + ' m';
+const fdate = s => new Date(s + 'T12:00:00').toLocaleDateString('fr-CA', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+let DAYS = [], chart, hist;
+Promise.all([fetch('validation_hist.json').then(r => r.json()).catch(() => ({ days: [] })), fetch('validation.json?t=' + Date.now()).then(r => r.json()).catch(() => ({ days: [] }))]).then(([h, l]) => {
+  const map = new Map(); for (const d of h.days) map.set(d.date, { ...d, s: d.s || [null, null, null, null, null, null, null] }); for (const d of l.days) map.set(d.date, d);   // le direct remplace l'historique
+  DAYS = [...map.values()].sort((a, b) => a.date < b.date ? -1 : 1);
+  for (const id of ['selK', 'selP', 'selIce']) document.getElementById(id).addEventListener('change', render);
+  render();
+});
+function render() {
+  const k = +document.getElementById('selK').value, P = +document.getElementById('selP').value, ice = document.getElementById('selIce').value;
+  let rows = DAYS.filter(d => d.m[k - 1] != null);
+  if (P) { const lim = new Date(Date.now() - P * 864e5).toLocaleDateString('fr-CA'); rows = rows.filter(d => d.date >= lim); }
+  if (ice === 'free') rows = rows.filter(d => !d.ice); else if (ice === 'ice') rows = rows.filter(d => d.ice);
+  const e = rows.map(d => d.obs - d.m[k - 1]); const n = e.length;
+  const rmse = v => Math.sqrt(v.reduce((a, b) => a + b * b, 0) / v.length), mean = v => v.reduce((a, b) => a + b, 0) / v.length, pct = (v, t) => 100 * v.filter(x => Math.abs(x) <= t).length / v.length;
+  const sp = rows.filter(d => d.s && d.s[k - 1] != null); const es = sp.map(d => d.obs - d.s[k - 1]);
+  const st = [];
+  if (n) {
+    st.push(['Jours comparés', n, P ? P + ' derniers jours' : 'depuis 2019']);
+    st.push(['Erreur typique (RMSE)', (100 * rmse(e)).toFixed(1) + ' cm', 'modèle, J+' + k]);
+    st.push(['Biais moyen', (100 * mean(e) >= 0 ? '+' : '') + (100 * mean(e)).toFixed(1) + ' cm', 'mesuré − prévu']);
+    st.push(['Dans ± 5 cm', pct(e, 0.05).toFixed(0) + ' %', 'des jours']);
+    st.push(['Dans ± 10 cm', pct(e, 0.10).toFixed(0) + ' %', 'des jours']);
+    st.push(['Pire écart', (100 * Math.max(...e.map(Math.abs))).toFixed(0) + ' cm', fdate(rows[e.map(Math.abs).indexOf(Math.max(...e.map(Math.abs)))].date)]);
+    if (es.length >= 3) { st.push(['SPINE : RMSE', (100 * rmse(es)).toFixed(1) + ' cm', es.length + ' jours archivés', 'sp']); st.push(['SPINE : dans ± 5 cm', pct(es, 0.05).toFixed(0) + ' %', 'modèle sur les mêmes jours : ' + pct(sp.map(d => d.obs - d.m[k - 1]), 0.05).toFixed(0) + ' %', 'sp']); }
+  }
+  document.getElementById('stats').innerHTML = st.map(s => `<div class="stat ${s[3] || ''}"><div class="l">${s[0]}</div><div class="v">${s[1]}</div><div class="s">${s[2]}</div></div>`).join('') || '<div class="stat"><div class="l">Aucune donnée</div><div class="s">pour cette sélection</div></div>';
+  document.getElementById('ctitle').textContent = `Niveau mesuré vs prévu ${k} jour${k > 1 ? 's' : ''} plus tôt` + (n ? ` – ${fdate(rows[0].date)} → ${fdate(rows[n - 1].date)}` : '');
+  const noon = s => new Date(s + 'T12:00:00').getTime();
+  const sets = [
+    { label: 'Mesuré', data: rows.map(d => ({ x: noon(d.date), y: d.obs })), borderColor: C_OBS, backgroundColor: C_OBS, pointRadius: n > 120 ? 0 : 3, borderWidth: 2, tension: 0 },
+    { label: 'Prévu (modèle, J+' + k + ')', data: rows.map(d => ({ x: noon(d.date), y: d.m[k - 1] })), borderColor: C_RED, backgroundColor: C_RED, borderDash: [6, 4], pointRadius: n > 120 ? 0 : 3, pointStyle: 'triangle', borderWidth: 2, tension: 0 }];
+  if (es.length) sets.push({ label: 'Prévu (SPINE, J+' + k + ')', data: sp.map(d => ({ x: noon(d.date), y: d.s[k - 1] })), borderColor: C_SP, backgroundColor: C_SP, borderDash: [2, 3], pointRadius: 3, borderWidth: 1.5, tension: 0, spanGaps: true });
+  const fr = { day: 'numeric', month: 'short' }, frY = { day: 'numeric', month: 'short', year: '2-digit' };
+  if (chart) chart.destroy();
+  chart = new Chart(document.getElementById('chart'), { type: 'line', data: { datasets: sets }, options: { responsive: true, maintainAspectRatio: false, parsing: false, interaction: { mode: 'index', intersect: false },
+    scales: { x: { type: 'time', time: { unit: n > 400 ? 'month' : n > 60 ? 'week' : 'day' }, ticks: { callback: v => new Date(v).toLocaleDateString('fr-CA', n > 400 ? frY : fr), maxRotation: 0, autoSkip: true, maxTicksLimit: MOB ? 6 : 14 } }, y: { title: { display: !MOB, text: 'm (zéro des cartes)' } } },
+    plugins: { legend: { position: 'bottom', labels: { boxWidth: MOB ? 10 : 40, font: { size: MOB ? 10 : 12 } } }, tooltip: { callbacks: { title: it => new Date(it[0].parsed.x).toLocaleDateString('fr-CA', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }), label: c => c.dataset.label + ' : ' + fmt(c.parsed.y) } } } } });
+  // histogramme des écarts (classes de 2 cm)
+  const bins = {}; for (const x of e) { const b = Math.round(100 * x / 2) * 2; bins[b] = (bins[b] || 0) + 1; }
+  const keys = Object.keys(bins).map(Number).sort((a, b) => a - b); const lo = Math.max(-40, keys[0] || 0), hi = Math.min(40, keys[keys.length - 1] || 0); const labels = []; for (let b = lo; b <= hi; b += 2) labels.push(b);
+  if (hist) hist.destroy();
+  hist = new Chart(document.getElementById('hist'), { type: 'bar', data: { labels: labels.map(b => (b > 0 ? '+' : '') + b), datasets: [{ label: 'Nombre de jours', data: labels.map(b => bins[b] || 0), backgroundColor: labels.map(b => Math.abs(b) <= 5 ? css('--green') : Math.abs(b) <= 10 ? C_RED : css('--bad')) }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { title: it => 'Écart ' + it[0].label + ' cm' } } }, scales: { x: { ticks: { maxTicksLimit: MOB ? 9 : 21, maxRotation: 0 }, title: { display: !MOB, text: 'mesuré − prévu (cm)' } }, y: { beginAtZero: true, title: { display: !MOB, text: 'jours' } } } } });
+  // tableau : les 30 derniers jours de la sélection
+  const cls = x => Math.abs(x) <= 0.05 ? 'ok' : Math.abs(x) <= 0.10 ? 'mid' : 'bad';
+  document.getElementById('rows').innerHTML = rows.slice(-30).reverse().map(d => { const em = d.obs - d.m[k - 1]; const s = d.s && d.s[k - 1]; return `<tr><td>${fdate(d.date)}</td><td>${fmt(d.obs)}</td><td>${fmt(d.m[k - 1])}</td><td class="${cls(em)}">${(em >= 0 ? '+' : '') + (100 * em).toFixed(1)} cm</td><td>${s != null ? fmt(s) : '–'}</td><td class="${s != null ? cls(d.obs - s) : ''}">${s != null ? ((d.obs - s >= 0 ? '+' : '') + (100 * (d.obs - s)).toFixed(1)) + ' cm' : '–'}</td></tr>`; }).join('');
+}
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => location.reload());
+</script>
+</body>
+</html>
