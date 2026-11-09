@@ -47,6 +47,7 @@
   .pill { display:inline-block; padding:2px 8px; border-radius:999px; background:var(--head); font-size:.75rem; margin-right:4px; }
   .hidden { display:none; }
   details summary { cursor:pointer; color:var(--navy); font-weight:600; }
+  td.btns.confirm { display:flex; gap:8px; flex-wrap:wrap; align-items:center; white-space:normal !important; } td.btns.confirm button { padding:6px 10px; }
   details.tol { margin-top:10px; } details.tol .row { margin-top:4px; } .small { font-size:.8rem; margin:6px 0 0; }
   .row > div, .row3 > div, .row4 > div { display:flex; flex-direction:column; justify-content:flex-end; min-width:0; }
   .row > div > input, .row > div > select, .row3 > div > input, .row3 > div > select, .row4 > div > input, .row4 > div > select { width:100%; }
@@ -66,7 +67,7 @@
     td { border:0; padding:3px 0; text-align:left !important; } td:empty { display:none; }
     td[data-l]::before { content:attr(data-l) " : "; color:var(--muted); font-size:.78rem; }
     td.head { font-weight:600; } td.head::before { content:none; }
-    td.btns { display:flex; gap:8px; margin-top:6px; } td.btns button { width:auto; flex:1; padding:8px; }
+    td.btns { display:flex; gap:8px; margin-top:6px; flex-wrap:wrap; } td.btns button { width:auto; flex:1; padding:8px; }
   }
   #installbar { display:none; position:fixed; left:12px; right:12px; bottom:12px; z-index:50; background:var(--card); color:var(--text); border:1px solid var(--line); border-radius:12px; padding:12px 14px; box-shadow:0 6px 24px rgba(0,0,0,.25); font-size:.9rem; line-height:1.4; max-width:560px; margin:0 auto; }
   #installbar b { color:var(--navy); } #installbar .ib { display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; }
@@ -258,7 +259,14 @@ async function saveSession() {
 $('rows').addEventListener('click', async ev => {
   const b = ev.target.closest('button'); if (!b) return;
   if (b.dataset.edit) { const s = data.sessions.find(x => x.id === b.dataset.edit); if (!s) return; editing = s.id; $('fDate').value = s.date; $('fSpot').value = s.spot || ''; $('fDebit').value = s.debit ?? ''; $('fNiveau').value = s.niveau ?? ''; $('fNote').value = s.note || ''; $('fForme').value = s.forme || ''; $('fForme2').value = s.forme2 || ''; $('fComment').value = s.commentaire || ''; $('fWho').value = s.qui || cfg.who; $('btnSave').textContent = 'Enregistrer la modification'; $('btnCancel').style.display = ''; window.scrollTo({ top: $('fDate').getBoundingClientRect().top + window.scrollY - 80, behavior: 'smooth' }); }
-  if (b.dataset.del) { const s = data.sessions.find(x => x.id === b.dataset.del); if (!s) return; $('listMsg').textContent = `Supprimer la session du ${s.date} ? `; const ok = document.createElement('button'); ok.className = 'danger'; ok.textContent = 'Oui, supprimer'; ok.style.padding = '4px 8px'; ok.onclick = async () => { data.sessions = data.sessions.filter(x => x.id !== s.id); try { await save('Suppression ' + s.date); $('listMsg').textContent = 'Supprimée.'; refresh(); } catch (e) { $('listMsg').textContent = e.message; } }; $('listMsg').appendChild(ok); }
+  if (b.dataset.del) {   // confirmation sur place, dans la carte de la session
+    const s = data.sessions.find(x => x.id === b.dataset.del); if (!s) return;
+    const cell = b.closest('td'); cell.classList.add('confirm');
+    cell.innerHTML = `<span class="muted" style="flex-basis:100%">Supprimer cette session ?</span><button class="danger" data-delok="${s.id}">Oui, supprimer</button><button class="sec" data-delno="${s.id}">Annuler</button>`;
+    cell.querySelector('[data-delok]').focus();
+  }
+  if (b.dataset.delok) { const s = data.sessions.find(x => x.id === b.dataset.delok); if (!s) return; b.disabled = true; b.textContent = 'Suppression…'; data.sessions = data.sessions.filter(x => x.id !== s.id); try { await save('Suppression ' + s.date); $('listMsg').textContent = 'Session du ' + s.date + ' supprimée.'; refresh(); } catch (e) { $('listMsg').textContent = e.message; refresh(); } }
+  if (b.dataset.delno) refresh();
 });
 $('btnCancel').onclick = () => { resetForm(); $('saveMsg').textContent = ''; };
 $('btnSave').onclick = saveSession;
