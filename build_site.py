@@ -74,7 +74,107 @@ def main():
     if all(d in br for d in (J, J1, J2)):
         fc = pf.forecast_v2(J, h[J]["frontenac_zc"], h[J]["pointeclaire_igld85"], h[J1]["pointeclaire_igld85"], h[J]["steanne_igld85"], h[J1]["steanne_igld85"], br[J], br[J1], br[J2])
         model_used = "v2"
+    # ---- modèle v3 : variables supplémentaires (Hull, Lanoraie, Richelieu, Varennes, CMI, heures 12-18 h), archivées dans aux_daily.csv
+    v3_used = []; aux_today = {}
+    if model_used == "v2" and pf.V3:
+        try:
+            import requests
+            AUX = os.path.join(DOCS, "aux_daily.csv"); aux = {}
+            if os.path.exists(AUX):
+                with open(AUX, newline="", encoding="utf-8") as f:
+                    for r in csv.DictReader(f): aux[dt.date.fromisoformat(r["date"])] = {k: (float(v) if v not in ("", None) else None) for k, v in r.items() if k != "date"}
+            COLS = ["hull", "lan", "ri", "var", "ms", "fr_aft", "fr_slope", "pc_aft", "pc_slope"]
+            def put(d, k, v):
+                if v is None: return
+                aux.setdefault(d, {c: None for c in COLS})[k] = v
+            for d, v in pf.fetch_eccc_daily("02LA015", "LEVEL").items(): put(d, "hull", v)        # Outaouais à Hull
+            for d, v in pf.fetch_eccc_daily("02OB011", "LEVEL").items(): put(d, "lan", v)         # Saint-Laurent à Lanoraie
+            for d, v in pf.fetch_eccc_daily("02OJ007", "DISCHARGE").items(): put(d, "ri", v)      # Richelieu aux rapides Fryers
+            pf.ST["var"] = ST_VAR
+            for d, v in pf.fetch_iwls_daily("var", J - dt.timedelta(days=3), J).items(): put(d, "var", v)   # Varennes (ZC)
+            # débit sortant du lac Ontario : série journalière à partir du registre des changements de la CMI (pondérée par l'heure du changement)
+            try:
+                t = requests.get("https://ijc.org/sites/default/files/ChangementDebit_FlowChanges.csv", timeout=30).text; ch = []
+                for line in t.splitlines()[4:]:
+                    p = [x.strip() for x in line.split(",")]
+                    if len(p) >= 3 and p[0] and p[2]:
+                        try:
+                            mo, dd, yy = p[0].split("/"); hh = int(p[1].split(":")[0]) if p[1] else 0; ch.append((dt.date(int(yy), int(mo), int(dd)), hh, int(p[2].replace(" ", ""))))
+                        except ValueError: pass
+                ch.sort()
+                if ch:
+                    for d in [J - dt.timedelta(days=i) for i in range(0, 4)]:
+                        before = [c for c in ch if c[0] < d]
+                        if not before: continue
+                        cur = before[-1][2]; parts = []; h0 = 0
+                        for c in [c for c in ch if c[0] == d]:
+                            parts.append((c[1] - h0) * cur); cur = c[2]; h0 = c[1]
+                        parts.append((24 - h0) * cur); put(d, "ms", sum(parts) / 24)
+            except Exception as e:
+                print("CMI indisponible :", e)
+            # heures 12-18 h et pente du jour (Frontenac, Pointe-Claire) à partir des séries horaires IWLS
+            def day_stats(series_hourly, d):
+                vals = {}
+                for p in series_hourly:
+                    tl = dt.datetime.strptime(p["t"][:19], "%Y-%m-%dT%H:%M:%S") + pf.TZ
+                    if tl.date() == d: vals[tl.hour] = p["v"]
+                aft = [vals[hh] for hh in range(12, 18) if hh in vals]; mor = [vals[hh] for hh in range(0, 6) if hh in vals]
+                if len(aft) >= 5 and len(mor) >= 5: return sum(aft) / len(aft), sum(aft) / len(aft) - sum(mor) / len(mor)
+                return None, None
+            t1 = dt.datetime.utcnow(); t0 = t1 - dt.timedelta(hours=96)
+            hourly_fr, hourly_pc = [], []
+            for code, store in (("fr", hourly_fr), ("pc", hourly_pc)):
+                try:
+                    r = requests.get(f"{pf.API}/{pf.ST[code]}/data", timeout=40, params={"time-series-code": "wlo", "from": t0.strftime("%Y-%m-%dT%H:%M:%SZ"), "to": t1.strftime("%Y-%m-%dT%H:%M:%SZ"), "resolution": "SIXTY_MINUTES"})
+                    store.extend({"t": p["eventDate"], "v": p["value"]} for p in r.json())
+                except Exception as e:
+                    print("horaire", code, "indisponible :", e)
+            for d in (J, J1):
+                a, sl = day_stats(hourly_fr, d); put(d, "fr_aft", a); put(d, "fr_slope", sl)
+                a, sl = day_stats(hourly_pc, d); put(d, "pc_aft", a); put(d, "pc_slope", sl)
+            aux = {d: v for d, v in aux.items() if d >= J - dt.timedelta(days=400)}
+            with open(AUX, "w", newline="", encoding="utf-8") as f:
+                w = csv.writer(f); w.writerow(["date"] + COLS); [w.writerow([d.isoformat()] + [("" if aux[d].get(c) is None else f"{aux[d][c]:.4f}") for c in COLS]) for d in sorted(aux)]
+            g = lambda d, k: aux.get(d, {}).get(k)
+            J3 = J - dt.timedelta(days=3)
+            extra = {
+                "dhull": (g(J, "hull") - g(J1, "hull")) if g(J, "hull") is not None and g(J1, "hull") is not None else None,
+                "dlan": (g(J, "lan") - g(J1, "lan")) if g(J, "lan") is not None and g(J1, "lan") is not None else None,
+                "dms_": ((g(J, "ms") - g(J1, "ms")) / 1000) if g(J, "ms") is not None and g(J1, "ms") is not None else None,
+                "ri_Q_k": (g(J, "ri") / 1000) if g(J, "ri") is not None else None,
+                "dvar": (g(J, "var") - g(J1, "var")) if g(J, "var") is not None and g(J1, "var") is not None else None,
+                "fr_aft": g(J, "fr_aft"), "fr_slope": g(J, "fr_slope"), "pc_slope": g(J, "pc_slope"),
+                "fr_l2": h[J2]["frontenac_zc"] if J2 in h else None, "dfr": h[J]["frontenac_zc"] - h[J1]["frontenac_zc"],
+                "pc_l3": h[J3]["pointeclaire_igld85"] if J3 in h else None,
+            }
+            aux_today = {k: (round(v, 4) if isinstance(v, float) else v) for k, v in extra.items()}
+            feats = pf.v3_features(J, h[J]["frontenac_zc"], h[J]["pointeclaire_igld85"], h[J1]["pointeclaire_igld85"], h[J]["steanne_igld85"], h[J1]["steanne_igld85"], br[J], br[J1], br[J2], extra)
+            fc, v3_used = pf.forecast_v3(J, feats, fc)
+            if v3_used: model_used = "v3" if len(v3_used) == 7 else "v3 partiel"
+            print("v3 : horizons", v3_used, "· manquants :", [k for k, v in extra.items() if v is None])
+        except Exception as e:
+            print("v3 impossible :", e)
     print("modèle utilisé :", model_used)
+    AUXD = {}
+    try:
+        with open(os.path.join(DOCS, "aux_daily.csv"), newline="", encoding="utf-8") as f:
+            for r in csv.DictReader(f): AUXD[dt.date.fromisoformat(r["date"])] = {k: (float(v) if v not in ("", None) else None) for k, v in r.items() if k != "date"}
+    except FileNotFoundError:
+        pass
+    def replay(Jp):
+        """Prévision 7 jours telle que le site l'aurait émise le jour Jp avec les seules données de ce jour-là (sans ajustement intrajournalier)."""
+        Jp1 = Jp - dt.timedelta(days=1); Jp2 = Jp - dt.timedelta(days=2); Jp3 = Jp - dt.timedelta(days=3)
+        if Jp not in hist or Jp1 not in hist or any(hist[x][k] is None for x in (Jp, Jp1) for k in ("frontenac_zc", "pointeclaire_igld85", "steanne_igld85")): return None
+        hp, hp1 = hist[Jp], hist[Jp1]; args = (Jp, hp["frontenac_zc"], hp["pointeclaire_igld85"], hp1["pointeclaire_igld85"], hp["steanne_igld85"], hp1["steanne_igld85"])
+        if not all(x in br for x in (Jp, Jp1, Jp2)): return pf.forecast(*args)[1]
+        f2 = pf.forecast_v2(*args, br[Jp], br[Jp1], br[Jp2])
+        if not pf.V3: return f2
+        g = lambda d, k: AUXD.get(d, {}).get(k)
+        dif = lambda k, d0, d1, sc=1: ((g(d0, k) - g(d1, k)) / sc) if g(d0, k) is not None and g(d1, k) is not None else None
+        extra = {"dhull": dif("hull", Jp, Jp1), "dlan": dif("lan", Jp, Jp1), "dms_": dif("ms", Jp, Jp1, 1000), "dvar": dif("var", Jp, Jp1),
+                 "ri_Q_k": (g(Jp, "ri") / 1000) if g(Jp, "ri") is not None else None, "fr_aft": g(Jp, "fr_aft"), "fr_slope": g(Jp, "fr_slope"), "pc_slope": g(Jp, "pc_slope"),
+                 "fr_l2": hist[Jp2]["frontenac_zc"] if Jp2 in hist else None, "dfr": hp["frontenac_zc"] - hp1["frontenac_zc"], "pc_l3": hist[Jp3]["pointeclaire_igld85"] if Jp3 in hist else None}
+        return pf.forecast_v3(Jp, pf.v3_features(*args, br[Jp], br[Jp1], br[Jp2], extra), f2)[0]
     spine = {}
     try:
         spine = pf.fetch_iwls_daily("fr", J + dt.timedelta(days=1), J + dt.timedelta(days=7), series="wlf-spine")
@@ -248,16 +348,11 @@ def main():
         replay = {}
         for Jp in sorted(hist):
             if Jp < d1 - dt.timedelta(days=400): continue      # le rejeu plus ancien est dans validation_hist.json (statique)
-            Jp1 = Jp - dt.timedelta(days=1); Jp2 = Jp - dt.timedelta(days=2)
-            if Jp1 not in hist or any(hist[x][k] is None for x in (Jp, Jp1) for k in ("frontenac_zc", "pointeclaire_igld85", "steanne_igld85")): continue
-            hp, hp1 = hist[Jp], hist[Jp1]
             try:
-                if all(x in br for x in (Jp, Jp1, Jp2)):
-                    fcp = pf.forecast_v2(Jp, hp["frontenac_zc"], hp["pointeclaire_igld85"], hp1["pointeclaire_igld85"], hp["steanne_igld85"], hp1["steanne_igld85"], br[Jp], br[Jp1], br[Jp2])
-                else:
-                    fcp = pf.forecast(Jp, hp["frontenac_zc"], hp["pointeclaire_igld85"], hp1["pointeclaire_igld85"], hp["steanne_igld85"], hp1["steanne_igld85"])[1]
+                fcp = replay(Jp)
             except Exception:
-                continue
+                fcp = None
+            if not fcp: continue
             for k, (d, l, mg) in enumerate(fcp, 1):
                 r = replay.setdefault(d, {"m": [None] * 7, "s": [None] * 7}); r["m"][k - 1] = round(l, 3)
                 if (Jp + dt.timedelta(days=1), d) in sp_runs: r["s"][k - 1] = round(sp_runs[(Jp + dt.timedelta(days=1), d)], 3)   # SPINE archivée le lendemain de J (jour d'émission réel)
@@ -404,15 +499,10 @@ def main():
         pass
     compare = []
     for d in days60[-14:]:
-        Jp = d - dt.timedelta(days=1); Jp1 = Jp - dt.timedelta(days=1); Jp2 = Jp - dt.timedelta(days=2); m = None
+        Jp = d - dt.timedelta(days=1); m = None
         try:
-            if Jp in hist and Jp1 in hist and all(hist[x][k] is not None for x in (Jp, Jp1) for k in ("frontenac_zc", "pointeclaire_igld85", "steanne_igld85")):
-                hp, hp1 = hist[Jp], hist[Jp1]
-                if all(x in br for x in (Jp, Jp1, Jp2)):
-                    fcp = pf.forecast_v2(Jp, hp["frontenac_zc"], hp["pointeclaire_igld85"], hp1["pointeclaire_igld85"], hp["steanne_igld85"], hp1["steanne_igld85"], br[Jp], br[Jp1], br[Jp2])
-                else:
-                    fcp = pf.forecast(Jp, hp["frontenac_zc"], hp["pointeclaire_igld85"], hp1["pointeclaire_igld85"], hp["steanne_igld85"], hp1["steanne_igld85"])[1]
-                m = round(fcp[0][1], 3)
+            fcp = replay(Jp)
+            if fcp: m = round(fcp[0][1], 3)
         except Exception as e:
             print("rejeu J+1 impossible pour", d, ":", e)
         compare.append({"date": d.isoformat(), "obs": round(hist[d]["frontenac_zc"], 3) if hist[d]["frontenac_zc"] is not None else None, "model": m, "spine": (round(spine_j1[d], 3) if d in spine_j1 else None)})
@@ -426,7 +516,7 @@ def main():
         "residual": round(res, 3), "ice": pf.is_ice(J), "model": model_used, "britannia_q": (round(br[J]) if J in br else None), "live": live, "water_temp": water_temp, "discharge": discharge,
         "partial_today": (round(partial["frontenac_zc"], 3) if partial and partial["frontenac_zc"] is not None else None),
         "history": [{"date": d.isoformat(), "obs": round(hist[d]["frontenac_zc"], 3)} for d in days60], "compare": compare, "hourly": hourly, "fine": fine, "spine_hourly": spine_hourly, "spine_adj": spine_adj, "skill": skill, "stat_skill": stat_skill, "q_forecast": q_fc, "qskill": qskill, "discharge_bdf": discharge_bdf, "air": air, "ms_flow": ms_flow, "q_anchor_day": (round(q_las[J]) if J in q_las else None),
-        "forecast": [{"date": d.isoformat(), "level": round(l, 3), "margin": round(m, 3), "spine": (round(spine[d], 3) if d in spine else None)} for d, l, m in fc], "intraday": intraday, "combo": combo,
+        "forecast": [{"date": d.isoformat(), "level": round(l, 3), "margin": round(m, 3), "spine": (round(spine[d], 3) if d in spine else None)} for d, l, m in fc], "intraday": intraday, "combo": combo, "v3_horizons": v3_used, "v3_inputs": aux_today,
     }
     with open(os.path.join(DOCS, "data.json"), "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=1)

@@ -18,7 +18,7 @@ Usage :
     python prevision_frontenac.py --sans-excel          # affiche seulement la prévision
 Dépendances :  pip install requests openpyxl
 """
-import argparse, datetime as dt, json, os, sys
+import argparse, datetime as dt, json, math, os, sys
 from collections import defaultdict
 
 try:
@@ -66,6 +66,57 @@ def forecast_v2(J, fr_J, pc_J, pc_J1, sa_J, sa_J1, br_J, br_J1, br_J2):
         p = V2["p90"][str(k)]; marge = p["ice"] if is_ice(d) else p["free"]
         out.append((d, lvl, marge))
     return out
+
+
+# Modèle v3 : v2 + variables sélectionnées pas à pas (coefs_v3.json) : variation du niveau de l'Outaouais à Hull (02LA015),
+# variation du débit sortant du lac Ontario (CMI), variation du niveau à Lanoraie (02OB011), débit du Richelieu (02OJ007),
+# niveau Frontenac J-2, Pointe-Claire J-3, variation Varennes, et les heures 12-18 h du jour J (Frontenac, Pointe-Claire).
+_V3_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "coefs_v3.json")
+V3 = json.load(open(_V3_PATH)) if os.path.exists(_V3_PATH) else None
+
+
+def v3_features(J, fr_J, pc_J, pc_J1, sa_J, sa_J1, br_J, br_J1, br_J2, extra):
+    """Dictionnaire de variables pour v3. `extra` : dhull, dms_, dlan, fr_l2, fr_aft, fr_slope, pc_slope, dfr, ri_Q_k, pc_l3, dvar (celles disponibles)."""
+    ice = is_ice(J)
+    f = {"pc_L": pc_J, "sa_L": sa_J, "ice": ice, "pcice": pc_J * ice, "saice": sa_J * ice, "fr_iwls": fr_J, "dpc": pc_J - pc_J1, "dsa": sa_J - sa_J1,
+         "br": br_J / 1000, "dbr": (br_J - br_J1) / 1000, "dbr2": (br_J - br_J2) / 1000, "s2": math.sin(4 * math.pi * J.timetuple().tm_yday / 365.25),
+         "c2": math.cos(4 * math.pi * J.timetuple().tm_yday / 365.25), "s1": math.sin(2 * math.pi * J.timetuple().tm_yday / 365.25), "c1": math.cos(2 * math.pi * J.timetuple().tm_yday / 365.25)}
+    f.update({k: v for k, v in extra.items() if v is not None})
+    return f
+
+
+def forecast_v3(J, feats, fallback):
+    """Prévision v3 par horizon ; retombe sur `fallback` (liste v2) pour un horizon dont une variable manque. Renvoie (liste, horizons_v3)."""
+    out, used = [], []
+    for k in range(1, 8):
+        h = V3["horizons"][str(k)]; d = J + dt.timedelta(days=k)
+        if all(n in feats for n in h["features"]):
+            lvl = h["coef"][0] + sum(b * feats[n] for b, n in zip(h["coef"][1:], h["features"]))
+            marge = (h["p90_ice"] if (is_ice(d) and h["p90_ice"]) else h["p90_free"])
+            out.append((d, lvl, marge)); used.append(k)
+        else:
+            out.append(fallback[k - 1])
+    return out, used
+
+
+def fetch_eccc_daily(station, prop="LEVEL"):
+    """Moyennes journalières (heure de l'Est) d'une variable ECCC temps réel (~30 jours). {} si indisponible."""
+    acc = defaultdict(list)
+    try:
+        offset = 0
+        while True:
+            r = requests.get(ECCC_RT, timeout=40, params={"STATION_NUMBER": station, "f": "json", "limit": 10000, "offset": offset, "properties": "DATETIME," + prop})
+            r.raise_for_status(); j = r.json()
+            for f in j["features"]:
+                p = f["properties"]
+                if p.get(prop) is None: continue
+                d = (dt.datetime.fromisoformat(p["DATETIME"].replace("Z", "+00:00")).replace(tzinfo=None) + TZ).date()
+                acc[d].append(p[prop])
+            if len(j["features"]) < 10000: break
+            offset += 10000
+    except Exception as e:
+        print(f"ECCC {station} {prop} indisponible :", e)
+    return {d: sum(v) / len(v) for d, v in acc.items() if len(v) >= 24}
 
 
 def fetch_eccc_discharge_daily_station(station):
