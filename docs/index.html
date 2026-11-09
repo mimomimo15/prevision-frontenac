@@ -31,7 +31,7 @@
   #qarrow { font-size:1.1rem; font-weight:700; color:var(--red); text-transform:none; }
   .card .value { font-size:1.7rem; font-weight:700; margin:4px 0 0; }
   .card .sub { font-size:.85rem; color:var(--muted); }
-  .red { color:var(--red); } .navy { color:var(--navy); } .ideal { color:var(--green) !important; } .ideal-tag { color:var(--green); font-weight:600; } .bad { color:var(--bad) !important; } .bad-tag { color:var(--bad); font-weight:600; }
+  .red { color:var(--red); } .navy { color:var(--navy); } .ideal { color:var(--green) !important; } .ideal-tag { color:var(--green); font-weight:600; } .bad { color:var(--bad) !important; } .bad-tag { color:var(--bad); font-weight:600; } .nop-tag { color:var(--muted); }
   .chart-wrap { background:var(--card); border-radius:12px; padding:12px; box-shadow:0 1px 3px rgba(0,0,0,.08); margin-bottom:16px; }
   canvas { width:100% !important; height:320px !important; }
   .ctitle { font-size:.9rem; font-weight:600; color:var(--navy); margin:2px 4px 8px; }
@@ -128,7 +128,10 @@ function markIdeal() {
     if (!r.ok) return;
     const j = await r.json(); const data = JSON.parse(decodeURIComponent(escape(atob(j.content.replace(/\n/g, '')))));
     const good = (data.sessions || []).filter(s => s.note && +s.note >= min && s.debit != null && (!spot || s.spot === spot));
-    if (!good.length) return;
+    if (!good.length) {   // journal connecté mais aucune bonne session : on le dit, en gris
+      for (const id of ['livetime', 'dischtime']) { const s = document.createElement('span'); s.className = 'nop-tag'; s.textContent = ' · plage idéale non définie (aucune session notée ≥ ' + min + (spot ? ', spot ' + spot : '') + ')'; document.getElementById(id).appendChild(s); }
+      return;
+    }
     const qs = good.map(s => +s.debit), ns = good.filter(s => s.niveau != null).map(s => +s.niveau);
     plage = { qmin: Math.min(...qs), qmax: Math.max(...qs), nmin: ns.length ? Math.min(...ns) : null, nmax: ns.length ? Math.max(...ns) : null };
     markIdeal();
