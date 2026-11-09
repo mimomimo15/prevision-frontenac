@@ -136,6 +136,9 @@
 
 </div>
 </main>
+<footer style="font-size:.76rem;color:var(--muted);text-align:center;padding:8px 16px 20px;line-height:1.5;max-width:900px;margin:0 auto">
+  Journal privé : les sessions sont enregistrées dans ton dépôt GitHub privé, pas sur ce site. Le jeton d'accès reste dans ce navigateur (stockage local) et n'est envoyé qu'à api.github.com ; « Oublier ce jeton » l'efface. Les conditions en direct proviennent du Service hydrographique du Canada et d'ECCC (Licence du gouvernement ouvert – Canada). Outil indicatif, sans garantie.
+</footer>
 <script>
 const $ = id => document.getElementById(id);
 const LS = { get: k => { try { return localStorage.getItem('jv_' + k) || ''; } catch (e) { return ''; } }, set: (k, v) => { try { localStorage.setItem('jv_' + k, v); } catch (e) {} }, del: k => { try { localStorage.removeItem('jv_' + k); } catch (e) {} } };
