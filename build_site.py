@@ -235,6 +235,24 @@ def main():
         for i, row in enumerate(q_fc, 1): row["p90"] = Q_P90_PERSIST[i]
     except Exception as e:
         print("prévision de débit indisponible :", e)
+    # débit sortant du lac Ontario (barrage Moses-Saunders) – registre des changements de la CMI (CSV, licence ouverte)
+    ms_flow = None
+    try:
+        import requests
+        t = requests.get("https://ijc.org/sites/default/files/ChangementDebit_FlowChanges.csv", timeout=30).text
+        rows = []
+        for line in t.splitlines()[4:]:
+            p = [x.strip() for x in line.split(",")]
+            if len(p) >= 3 and p[0] and p[2]:
+                try:
+                    m, dd, y = p[0].split("/"); rows.append((dt.date(int(y), int(m), int(dd)), p[1], int(p[2].replace(" ", ""))))
+                except ValueError:
+                    pass
+        if rows:
+            rows.sort(); last = rows[-1]; prev = rows[-2] if len(rows) > 1 else None
+            ms_flow = {"date": last[0].isoformat(), "hour": last[1], "value": last[2], "previous": (prev[2] if prev else None)}
+    except Exception as e:
+        print("débit lac Ontario (CMI) indisponible :", e)
     days60 = [d for d in sorted(hist) if d <= J][-60:]
     data = {
         "generated": dt.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -242,7 +260,7 @@ def main():
         "day_J": J.isoformat(), "obs_J": round(h[J]["frontenac_zc"], 3), "pc_J": round(h[J]["pointeclaire_igld85"], 3), "sa_J": round(h[J]["steanne_igld85"], 3),
         "residual": round(res, 3), "ice": pf.is_ice(J), "model": model_used, "britannia_q": (round(br[J]) if J in br else None), "live": live, "water_temp": water_temp, "discharge": discharge,
         "partial_today": (round(partial["frontenac_zc"], 3) if partial and partial["frontenac_zc"] is not None else None),
-        "history": [{"date": d.isoformat(), "obs": round(hist[d]["frontenac_zc"], 3)} for d in days60], "hourly": hourly, "spine_hourly": spine_hourly, "spine_adj": spine_adj, "skill": skill, "stat_skill": stat_skill, "q_forecast": q_fc, "discharge_bdf": discharge_bdf, "q_anchor_day": (round(q_las[J]) if J in q_las else None),
+        "history": [{"date": d.isoformat(), "obs": round(hist[d]["frontenac_zc"], 3)} for d in days60], "hourly": hourly, "spine_hourly": spine_hourly, "spine_adj": spine_adj, "skill": skill, "stat_skill": stat_skill, "q_forecast": q_fc, "discharge_bdf": discharge_bdf, "ms_flow": ms_flow, "q_anchor_day": (round(q_las[J]) if J in q_las else None),
         "forecast": [{"date": d.isoformat(), "level": round(l, 3), "margin": round(m, 3), "spine": (round(spine[d], 3) if d in spine else None)} for d, l, m in fc],
     }
     with open(os.path.join(DOCS, "data.json"), "w", encoding="utf-8") as f:
