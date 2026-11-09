@@ -1,12 +1,12 @@
 {
- "generated": "2026-11-09T03:34:54Z",
+ "generated": "2026-11-09T03:44:06Z",
  "station": "Montréal, rue Frontenac (SHC 15540)",
  "datum_note": "mètres au-dessus du zéro des cartes (IGLD85 = ZC + 5,35 m)",
  "day_J": "2026-11-08",
  "obs_J": -0.017,
- "pc_J": 20.83,
- "sa_J": 21.418,
- "residual": 0.067,
+ "pc_J": 20.831,
+ "sa_J": 21.417,
+ "residual": 0.066,
  "ice": 0,
  "model": "v2",
  "britannia_q": 557,
@@ -800,11 +800,17 @@
   "time": "2026-11-09T03:00:00Z",
   "value": 64
  },
+ "ms_flow": {
+  "date": "2026-11-07",
+  "hour": "0:01",
+  "value": 6900,
+  "previous": 6910
+ },
  "q_anchor_day": 7459,
  "forecast": [
   {
    "date": "2026-11-09",
-   "level": 0.016,
+   "level": 0.017,
    "margin": 0.079,
    "spine": 0.079
   },
@@ -816,13 +822,13 @@
   },
   {
    "date": "2026-11-11",
-   "level": 0.017,
+   "level": 0.018,
    "margin": 0.222,
    "spine": 0.172
   },
   {
    "date": "2026-11-12",
-   "level": 0.009,
+   "level": 0.01,
    "margin": 0.264,
    "spine": 0.238
   },
@@ -840,7 +846,7 @@
   },
   {
    "date": "2026-11-15",
-   "level": -0.011,
+   "level": -0.01,
    "margin": 0.363,
    "spine": 0.389
   }
