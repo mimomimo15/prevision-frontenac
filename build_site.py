@@ -12,6 +12,9 @@ import prevision_frontenac as pf
 DOCS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "docs")
 HIST = os.path.join(DOCS, "history.csv")
 FIELDS = ["date", "frontenac_zc", "pointeclaire_igld85", "steanne_igld85", "lasalle_q"]
+ST_VAR = "5cebf1e03d0f4a073c4bbe04"   # Varennes (15660), utilisé pour la prévision de débit
+Q_COEF = [7310.79, 5972.9, 1842.5, -184.23]   # débit LaSalle ≈ c0 + c1·(Frontenac − Varennes) + c2·Frontenac + c3·Glace
+Q_P90_PERSIST = {1: 270, 2: 400, 3: 500, 4: 600, 5: 650, 6: 720, 7: 790}
 
 
 def load_hist():
