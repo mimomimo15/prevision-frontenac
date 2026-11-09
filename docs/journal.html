@@ -101,10 +101,11 @@
 
 <div class="card">
   <h2>Est-ce que la vague est belle maintenant ?</h2>
-  <div class="row3">
+  <div class="row4">
     <div><label>Débit du jour (m³/s)</label><input id="vDebit" type="number" step="10"></div>
     <div><label>Niveau du jour (m)</label><input id="vNiveau" type="number" step="0.01"></div>
     <div><label>Vague / spot (vide = toutes)</label><select id="vSpot"><option value="">Toutes</option></select></div>
+    <div><label>Débit mesuré à</label><select id="vStation"><option value="las">LaSalle (fleuve)</option><option value="bdf">Bois-des-Filion (Mille Îles)</option></select></div>
   </div>
   <details class="tol"><summary>Tolérances</summary>
     <div class="row"><div><label>Débit ± (m³/s)</label><input id="vTolQ" type="number" step="10" value="150"></div><div><label>Niveau ± (m)</label><input id="vTolN" type="number" step="0.01" value="0.05"></div></div>
@@ -118,9 +119,9 @@
 
 <div class="card">
   <h2>Ta plage idéale</h2>
-  <div class="row"><div><label>Note minimale d’une « bonne » session</label><input id="pMin" type="number" min="1" max="5" value="4"></div><div><label>Vague / spot (vide = toutes)</label><select id="pSpot"><option value="">Toutes</option></select></div></div>
+  <div class="row3"><div><label>Note minimale d’une « bonne » session</label><input id="pMin" type="number" min="1" max="5" value="4"></div><div><label>Vague / spot (vide = toutes)</label><select id="pSpot"><option value="">Toutes</option></select></div><div><label>Débit mesuré à</label><select id="pStation"><option value="las">LaSalle (fleuve)</option><option value="bdf">Bois-des-Filion (Mille Îles)</option></select></div></div>
   <div id="plage" class="muted" style="margin-top:8px"></div>
-  <p class="muted small">Sur la page principale, le niveau et le débit en direct s’affichent en vert quand ils sont dans cette plage, élargie des tolérances ci-dessus (± débit, ± niveau), et en rouge sinon.</p>
+  <p class="muted small">Sur la page principale, le niveau et les débits en direct s’affichent en vert quand ils sont dans la plage des bonnes sessions (élargie des tolérances ci-dessus), et en rouge sinon : la carte « Débit en direct (LaSalle) » suit les sessions notées avec le débit LaSalle, la carte « Bois-des-Filion » celles notées avec le débit Bois-des-Filion.</p>
 </div>
 
 <div class="card">
@@ -129,6 +130,7 @@
     <div><label>Date</label><input id="fDate" type="date"></div>
     <div><label>Vague / spot</label><input id="fSpot" list="spotList" placeholder="H67"><datalist id="spotList"></datalist></div>
     <div><label>Débit (m³/s)</label><input id="fDebit" type="number" step="10"></div>
+    <div><label>Débit mesuré à</label><select id="fStation"><option value="las">LaSalle (fleuve)</option><option value="bdf">Bois-des-Filion (Mille Îles)</option></select></div>
     <div><label>Niveau (m)</label><input id="fNiveau" type="number" step="0.01"></div>
   </div>
   <div class="row4">
@@ -194,7 +196,7 @@ async function save(msg) {
 
 // ---------------- conditions en direct (site + SHC)
 async function fetchLive() {
-  try { const d = await fetch('data.json?t=' + Date.now()).then(r => r.json()); if (d.discharge) live.debit = d.discharge.value; if (d.live) live.niveau = d.live.value; } catch (e) {}
+  try { const d = await fetch('data.json?t=' + Date.now()).then(r => r.json()); if (d.discharge) live.debit = d.discharge.value; if (d.discharge_bdf) live.bdf = d.discharge_bdf.value; if (d.live) live.niveau = d.live.value; } catch (e) {}
   try {
     const t1 = new Date(), t0 = new Date(t1 - 3 * 3600e3), iso = x => x.toISOString().slice(0, 19) + 'Z';
     const ctrl = new AbortController(); setTimeout(() => ctrl.abort(), 5000);
@@ -206,8 +208,14 @@ async function fetchLive() {
     const j = await fetch('https://api.weather.gc.ca/collections/hydrometric-realtime/items?STATION_NUMBER=02OA016&f=json&limit=6&sortby=-DATETIME&properties=DATETIME,DISCHARGE', { signal: ctrl.signal }).then(r => r.json());
     const f = j.features.map(x => x.properties).find(p => p.DISCHARGE != null); if (f) live.debit = Math.round(f.DISCHARGE);
   } catch (e) {}
+  try {
+    const ctrl = new AbortController(); setTimeout(() => ctrl.abort(), 5000);
+    const j = await fetch('https://api.weather.gc.ca/collections/hydrometric-realtime/items?STATION_NUMBER=02OA003&f=json&limit=6&sortby=-DATETIME&properties=DATETIME,DISCHARGE', { signal: ctrl.signal }).then(r => r.json());
+    const f = j.features.map(x => x.properties).find(p => p.DISCHARGE != null); if (f) live.bdf = Math.round(f.DISCHARGE);
+  } catch (e) {}
 }
-function applyLive() { if (live.debit != null) { $('vDebit').value = live.debit; $('fDebit').value = live.debit; } if (live.niveau != null) { $('vNiveau').value = (+live.niveau).toFixed(2); $('fNiveau').value = (+live.niveau).toFixed(2); } verify(); }
+const liveQ = st => st === 'bdf' ? live.bdf : live.debit;
+function applyLive() { const qv = liveQ($('vStation').value), qf = liveQ($('fStation').value); if (qv != null) $('vDebit').value = qv; if (qf != null) $('fDebit').value = qf; if (live.niveau != null) { $('vNiveau').value = (+live.niveau).toFixed(2); $('fNiveau').value = (+live.niveau).toFixed(2); } verify(); }
 
 // ---------------- logique « Vérifier » (identique au classeur)
 function verify() {
@@ -215,7 +223,8 @@ function verify() {
   const tq = parseFloat($('vTolQ').value) || 150, tn = $('vTolN').value === '' ? null : parseFloat($('vTolN').value);
   const useN = n != null && tn != null;
   if (isNaN(q)) { $('verdict').textContent = 'Entre le débit du jour'; $('verdictDetail').textContent = ''; $('closest').innerHTML = ''; return; }
-  const cand = data.sessions.filter(s => s.note && s.debit != null && (!spot || s.spot === spot)).map(s => {
+  const st = $('vStation').value; const stOf = s => s.station || 'las';
+  const cand = data.sessions.filter(s => s.note && s.debit != null && (!spot || s.spot === spot) && stOf(s) === st).map(s => {
     const dq = (s.debit - q) / tq; const dn = useN ? (s.niveau == null ? 1 : (s.niveau - n) / tn) : 0;
     return { s, dist: Math.sqrt(dq * dq + dn * dn), inRange: Math.abs(s.debit - q) <= tq && (!useN || (s.niveau != null && Math.abs(s.niveau - n) <= tn)) };
   });
@@ -225,14 +234,14 @@ function verify() {
   $('verdict').textContent = v;
   $('verdictDetail').textContent = nIn ? `${nIn} session${nIn > 1 ? 's' : ''} à ± ${tq} m³/s${useN ? ' et ± ' + tn + ' m' : ''} · note moyenne ${mean.toFixed(1)} / 5` : (cand.length ? `${cand.length} session(s) au total, aucune dans la plage` : '');
   const top = cand.sort((a, b) => a.dist - b.dist).slice(0, 3);
-  $('closest').innerHTML = top.length ? `<div class="near"><div class="near-t">Les ${top.length} session${top.length > 1 ? 's' : ''} les plus proches de ces conditions</div>` + top.map(c => `<div class="near-row${c.inRange ? ' in' : ''}"><div class="near-h"><span class="near-d">${c.s.date}</span> · ${c.s.spot || ''}${c.s.qui ? ' · ' + esc(c.s.qui) : ''}<span class="stars">${'★'.repeat(+c.s.note)}</span></div><div class="near-c">${c.s.debit} m³/s <span class="muted">(${c.s.debit - q >= 0 ? '+' : ''}${Math.round(c.s.debit - q)})</span>${c.s.niveau != null ? ` · ${c.s.niveau.toFixed(2)} m` + (n != null ? ` <span class="muted">(${c.s.niveau - n >= 0 ? '+' : ''}${(100 * (c.s.niveau - n)).toFixed(0)} cm)</span>` : '') : ''}${c.s.forme ? ' · ' + esc(c.s.forme) : ''}${c.s.forme2 ? ' / ' + esc(c.s.forme2) : ''}</div>${c.s.commentaire ? `<div class="near-k">« ${esc(c.s.commentaire)} »</div>` : ''}</div>`).join('') + '</div>' : '';
+  $('closest').innerHTML = top.length ? `<div class="near"><div class="near-t">Les ${top.length} session${top.length > 1 ? 's' : ''} les plus proches de ces conditions</div>` + top.map(c => `<div class="near-row${c.inRange ? ' in' : ''}"><div class="near-h"><span class="near-d">${c.s.date}</span> · ${c.s.spot || ''}${c.s.qui ? ' · ' + esc(c.s.qui) : ''}<span class="stars">${'★'.repeat(+c.s.note)}</span></div><div class="near-c">${c.s.debit} m³/s${(c.s.station || 'las') === 'bdf' ? ' BdF' : ''} <span class="muted">(${c.s.debit - q >= 0 ? '+' : ''}${Math.round(c.s.debit - q)})</span>${c.s.niveau != null ? ` · ${c.s.niveau.toFixed(2)} m` + (n != null ? ` <span class="muted">(${c.s.niveau - n >= 0 ? '+' : ''}${(100 * (c.s.niveau - n)).toFixed(0)} cm)</span>` : '') : ''}${c.s.forme ? ' · ' + esc(c.s.forme) : ''}${c.s.forme2 ? ' / ' + esc(c.s.forme2) : ''}</div>${c.s.commentaire ? `<div class="near-k">« ${esc(c.s.commentaire)} »</div>` : ''}</div>`).join('') + '</div>' : '';
 }
 function plage() {
-  const min = parseFloat($('pMin').value) || 4, spot = $('pSpot').value;
-  const all = data.sessions.filter(s => s.note && (!spot || s.spot === spot)), good = all.filter(s => +s.note >= min && s.debit != null);
-  if (!good.length) { $('plage').textContent = `${all.length} session(s) notée(s) · aucune bonne session (note ≥ ${min}) pour l’instant`; return; }
+  const min = parseFloat($('pMin').value) || 4, spot = $('pSpot').value, st = $('pStation').value;
+  const all = data.sessions.filter(s => s.note && (!spot || s.spot === spot) && (s.station || 'las') === st), good = all.filter(s => +s.note >= min && s.debit != null);
+  if (!good.length) { $('plage').textContent = `${all.length} session(s) notée(s) avec débit ${st === 'bdf' ? 'Bois-des-Filion' : 'LaSalle'} · aucune bonne session (note ≥ ${min}) pour l’instant`; return; }
   const qs = good.map(s => s.debit), ns = good.filter(s => s.niveau != null).map(s => s.niveau);
-  $('plage').innerHTML = `${all.length} sessions notées · <strong>${good.length} bonnes</strong> (note ≥ ${min})<br>Débit des bonnes sessions : <strong>${Math.min(...qs)} → ${Math.max(...qs)} m³/s</strong> (moyenne ${Math.round(qs.reduce((a, b) => a + b, 0) / qs.length)})` + (ns.length ? `<br>Niveau des bonnes sessions : <strong>${Math.min(...ns).toFixed(2)} → ${Math.max(...ns).toFixed(2)} m</strong>` : '');
+  $('plage').innerHTML = `${all.length} sessions notées · <strong>${good.length} bonnes</strong> (note ≥ ${min})<br>Débit (${st === 'bdf' ? 'Bois-des-Filion' : 'LaSalle'}) des bonnes sessions : <strong>${Math.min(...qs)} → ${Math.max(...qs)} m³/s</strong> (moyenne ${Math.round(qs.reduce((a, b) => a + b, 0) / qs.length)})` + (ns.length ? `<br>Niveau des bonnes sessions : <strong>${Math.min(...ns).toFixed(2)} → ${Math.max(...ns).toFixed(2)} m</strong>` : '');
 }
 
 // ---------------- liste, formulaire
@@ -249,12 +258,12 @@ function renderList() {
   const who = $('lWho').value, spot = $('lSpot').value;
   const rows = data.sessions.filter(s => (!who || s.qui === who) && (!spot || s.spot === spot)).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   $('count').textContent = rows.length + ' / ' + data.sessions.length;
-  $('rows').innerHTML = rows.map(s => `<tr><td class="head">${s.date || ''} <span class="muted">· ${esc(s.spot || '')}${s.qui ? ' · ' + esc(s.qui) : ''}</span></td><td class="num" data-l="Spot">${esc(s.spot || '')}</td><td class="num" data-l="Débit">${s.debit ?? ''}${s.debit != null ? ' m³/s' : ''}</td><td class="num" data-l="Niveau">${s.niveau != null ? s.niveau.toFixed(2) + ' m' : ''}</td><td data-l="Note"><span class="stars">${'★'.repeat(+s.note || 0)}</span></td><td data-l="Forme">${esc(s.forme || '')}${s.forme2 ? ' / ' + esc(s.forme2) : ''}</td><td data-l="Commentaire">${esc(s.commentaire || '')}</td><td class="btns" style="white-space:nowrap"><button class="sec" data-edit="${s.id}" style="padding:4px 8px">✎ Modifier</button> <button class="danger" data-del="${s.id}" style="padding:4px 8px">✕</button></td></tr>`).join('');
+  $('rows').innerHTML = rows.map(s => `<tr><td class="head">${s.date || ''} <span class="muted">· ${esc(s.spot || '')}${s.qui ? ' · ' + esc(s.qui) : ''}</span></td><td class="num" data-l="Spot">${esc(s.spot || '')}</td><td class="num" data-l="Débit">${s.debit ?? ''}${s.debit != null ? ' m³/s' : ''}${(s.station || 'las') === 'bdf' ? ' <span class="muted">BdF</span>' : ''}</td><td class="num" data-l="Niveau">${s.niveau != null ? s.niveau.toFixed(2) + ' m' : ''}</td><td data-l="Note"><span class="stars">${'★'.repeat(+s.note || 0)}</span></td><td data-l="Forme">${esc(s.forme || '')}${s.forme2 ? ' / ' + esc(s.forme2) : ''}</td><td data-l="Commentaire">${esc(s.commentaire || '')}</td><td class="btns" style="white-space:nowrap"><button class="sec" data-edit="${s.id}" style="padding:4px 8px">✎ Modifier</button> <button class="danger" data-del="${s.id}" style="padding:4px 8px">✕</button></td></tr>`).join('');
 }
 function refresh() { fillSelects(); renderList(); plage(); verify(); }
 function resetForm() { editing = null; $('fDate').value = new Date().toLocaleDateString('fr-CA'); $('fSpot').value = data.sessions.length ? data.sessions[data.sessions.length - 1].spot || '' : ''; $('fNote').value = ''; $('fForme').value = ''; $('fForme2').value = ''; $('fComment').value = ''; $('fWho').value = cfg.who; $('btnSave').textContent = 'Enregistrer la session'; $('btnCancel').style.display = 'none'; applyLive(); }
 async function saveSession() {
-  const s = { id: editing || (Date.now().toString(36) + Math.random().toString(36).slice(2, 6)), date: $('fDate').value, spot: $('fSpot').value.trim(), debit: $('fDebit').value === '' ? null : Math.round(+$('fDebit').value), niveau: $('fNiveau').value === '' ? null : +$('fNiveau').value, note: $('fNote').value ? +$('fNote').value : null, forme: $('fForme').value, forme2: $('fForme2').value, commentaire: $('fComment').value.trim(), qui: $('fWho').value.trim() || cfg.who, maj: new Date().toISOString() };
+  const s = { id: editing || (Date.now().toString(36) + Math.random().toString(36).slice(2, 6)), date: $('fDate').value, spot: $('fSpot').value.trim(), debit: $('fDebit').value === '' ? null : Math.round(+$('fDebit').value), station: $('fStation').value, niveau: $('fNiveau').value === '' ? null : +$('fNiveau').value, note: $('fNote').value ? +$('fNote').value : null, forme: $('fForme').value, forme2: $('fForme2').value, commentaire: $('fComment').value.trim(), qui: $('fWho').value.trim() || cfg.who, maj: new Date().toISOString() };
   if (!s.date || s.debit == null || !s.note) { $('saveMsg').textContent = 'Il faut au moins la date, le débit et la note.'; return; }
   if (s.qui && s.qui !== cfg.who) { cfg.who = s.qui; LS.set('who', s.qui); }
   const i = data.sessions.findIndex(x => x.id === s.id); if (i >= 0) data.sessions[i] = s; else data.sessions.push(s);
@@ -264,7 +273,7 @@ async function saveSession() {
 }
 $('rows').addEventListener('click', async ev => {
   const b = ev.target.closest('button'); if (!b) return;
-  if (b.dataset.edit) { const s = data.sessions.find(x => x.id === b.dataset.edit); if (!s) return; editing = s.id; $('fDate').value = s.date; $('fSpot').value = s.spot || ''; $('fDebit').value = s.debit ?? ''; $('fNiveau').value = s.niveau ?? ''; $('fNote').value = s.note || ''; $('fForme').value = s.forme || ''; $('fForme2').value = s.forme2 || ''; $('fComment').value = s.commentaire || ''; $('fWho').value = s.qui || cfg.who; $('btnSave').textContent = 'Enregistrer la modification'; $('btnCancel').style.display = ''; window.scrollTo({ top: $('fDate').getBoundingClientRect().top + window.scrollY - 80, behavior: 'smooth' }); }
+  if (b.dataset.edit) { const s = data.sessions.find(x => x.id === b.dataset.edit); if (!s) return; editing = s.id; $('fDate').value = s.date; $('fSpot').value = s.spot || ''; $('fDebit').value = s.debit ?? ''; $('fStation').value = s.station || 'las'; $('fNiveau').value = s.niveau ?? ''; $('fNote').value = s.note || ''; $('fForme').value = s.forme || ''; $('fForme2').value = s.forme2 || ''; $('fComment').value = s.commentaire || ''; $('fWho').value = s.qui || cfg.who; $('btnSave').textContent = 'Enregistrer la modification'; $('btnCancel').style.display = ''; window.scrollTo({ top: $('fDate').getBoundingClientRect().top + window.scrollY - 80, behavior: 'smooth' }); }
   if (b.dataset.del) {   // confirmation sur place, dans la carte de la session
     const s = data.sessions.find(x => x.id === b.dataset.del); if (!s) return;
     const cell = b.closest('td'); cell.classList.add('confirm');
@@ -277,6 +286,10 @@ $('rows').addEventListener('click', async ev => {
 $('btnCancel').onclick = () => { resetForm(); $('saveMsg').textContent = ''; };
 $('btnSave').onclick = saveSession;
 $('btnLive').onclick = async () => { await fetchLive(); applyLive(); };
+$('vStation').addEventListener('change', () => { const qv = liveQ($('vStation').value); if (qv != null) $('vDebit').value = qv; verify(); });
+$('fStation').addEventListener('change', () => { LS.set('fstation', $('fStation').value); const qf = liveQ($('fStation').value); if (qf != null && !editing) $('fDebit').value = qf; });
+$('pStation').addEventListener('change', () => { LS.set('pstation', $('pStation').value); plage(); });
+if (LS.get('fstation')) { $('fStation').value = LS.get('fstation'); $('vStation').value = LS.get('fstation'); } if (LS.get('pstation')) $('pStation').value = LS.get('pstation');
 for (const id of ['vDebit', 'vNiveau', 'vSpot', 'vTolQ', 'vTolN']) $(id).addEventListener('input', () => { LS.set('tolq', $('vTolQ').value); LS.set('toln', $('vTolN').value); verify(); });
 if (LS.get('tolq') !== '') $('vTolQ').value = LS.get('tolq'); if (localStorage.getItem('jv_toln') !== null) $('vTolN').value = LS.get('toln');
 for (const id of ['pMin', 'pSpot']) $(id).addEventListener('input', () => { LS.set('pmin', $('pMin').value); LS.set('pspot', $('pSpot').value); plage(); });
@@ -285,8 +298,8 @@ for (const id of ['lWho', 'lSpot']) $(id).addEventListener('change', renderList)
 
 // ---------------- export / import / formes
 $('btnExport').onclick = () => {
-  const cols = ['date', 'spot', 'debit', 'niveau', 'note', 'forme', 'forme2', 'commentaire', 'qui'];
-  const csv = '﻿' + ['Date;Vague / spot;Débit (m³/s);Niveau (m);Note (1-5);Forme de la vague;Forme 2;Commentaires;Qui'].concat(data.sessions.map(s => cols.map(c => { let v = s[c] ?? ''; if (typeof v === 'number') v = String(v).replace('.', ','); return '"' + String(v).replace(/"/g, '""') + '"'; }).join(';'))).join('\r\n');
+  const cols = ['date', 'spot', 'debit', 'stationLabel', 'niveau', 'note', 'forme', 'forme2', 'commentaire', 'qui'];
+  const csv = '﻿' + ['Date;Vague / spot;Débit (m³/s);Station de débit;Niveau (m);Note (1-5);Forme de la vague;Forme 2;Commentaires;Qui'].concat(data.sessions.map(s => cols.map(c => { let v = c === 'stationLabel' ? ((s.station || 'las') === 'bdf' ? 'Bois-des-Filion' : 'LaSalle') : (s[c] ?? ''); if (typeof v === 'number') v = String(v).replace('.', ','); return '"' + String(v).replace(/"/g, '""') + '"'; }).join(';'))).join('\r\n');
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })); a.download = 'journal_vague.csv'; a.click();
 };
 $('fileImport').addEventListener('change', async ev => {
@@ -295,12 +308,12 @@ $('fileImport').addEventListener('change', async ev => {
   const parse = line => { const out = []; let cur = '', q = false; for (let i = 0; i < line.length; i++) { const c = line[i]; if (q) { if (c === '"' && line[i + 1] === '"') { cur += '"'; i++; } else if (c === '"') q = false; else cur += c; } else if (c === '"') q = true; else if (c === sep) { out.push(cur); cur = ''; } else cur += c; } out.push(cur); return out; };
   const lines = txt.split(/\r?\n/).filter(l => l.trim()); const head = parse(lines[0]).map(h => h.toLowerCase());
   const col = re => head.findIndex(h => re.test(h));
-  const ci = { date: col(/date/), spot: col(/vague|spot/), debit: col(/d[ée]bit/), niveau: col(/niveau/), note: col(/note/), forme: col(/forme de|^forme$/), forme2: col(/forme 2/), com: col(/comment/), qui: col(/qui/) };
+  const ci = { date: col(/date/), spot: col(/vague|spot/), debit: col(/^d[ée]bit/), station: col(/station/), niveau: col(/niveau/), note: col(/note/), forme: col(/forme de|^forme$/), forme2: col(/forme 2/), com: col(/comment/), qui: col(/qui/) };
   const num = v => { if (v == null || v === '') return null; const x = parseFloat(String(v).replace(',', '.')); return isNaN(x) ? null : x; };
   const toDate = v => { v = String(v).trim(); const m = v.match(/^(\d{4})-(\d{2})-(\d{2})/); if (m) return v.slice(0, 10); const m2 = v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/); if (m2) return `${m2[3]}-${m2[2].padStart(2, '0')}-${m2[1].padStart(2, '0')}`; const d = new Date(v); return isNaN(d) ? v : d.toLocaleDateString('fr-CA'); };
   let n = 0;
   for (const line of lines.slice(1)) { const f = parse(line); const debit = num(f[ci.debit]), note = num(f[ci.note]); if (ci.date < 0 || !f[ci.date] || debit == null || !note) continue;
-    const s = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), date: toDate(f[ci.date]), spot: (f[ci.spot] || '').trim(), debit: Math.round(debit), niveau: num(f[ci.niveau]), note: Math.round(note), forme: (f[ci.forme] || '').trim(), forme2: (f[ci.forme2] || '').trim(), commentaire: (f[ci.com] || '').trim(), qui: ((ci.qui >= 0 && f[ci.qui]) || cfg.who || '').trim(), maj: new Date().toISOString() };
+    const s = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), date: toDate(f[ci.date]), spot: (f[ci.spot] || '').trim(), debit: Math.round(debit), station: (ci.station >= 0 && /filion|bdf|mille/i.test(f[ci.station] || '')) ? 'bdf' : 'las', niveau: num(f[ci.niveau]), note: Math.round(note), forme: (f[ci.forme] || '').trim(), forme2: (f[ci.forme2] || '').trim(), commentaire: (f[ci.com] || '').trim(), qui: ((ci.qui >= 0 && f[ci.qui]) || cfg.who || '').trim(), maj: new Date().toISOString() };
     if (!data.sessions.some(x => x.date === s.date && x.spot === s.spot && x.debit === s.debit && x.note === s.note)) { data.sessions.push(s); n++; }
     for (const sh of [s.forme, s.forme2]) if (sh && !data.shapes.includes(sh)) data.shapes.push(sh); }
   ev.target.value = '';

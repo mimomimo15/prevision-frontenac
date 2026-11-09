@@ -81,6 +81,7 @@
   </div>
 </header>
 <main>
+  <div id="stale" style="display:none;background:var(--warnbg);color:var(--text);padding:10px 14px;border-radius:10px;margin-bottom:12px;font-size:.9rem;border-left:4px solid var(--red)"></div>
   <div id="icewarn" class="warn" style="display:none">Période de glace (décembre–mars) : la prévision est moins fiable (embâcles possibles).</div>
   <div class="cards">
     <div class="card"><div class="label">Niveau en direct</div><div class="value navy" id="live">–</div><div class="sub" id="livetime"></div></div>
@@ -90,6 +91,7 @@
     <div class="card"><div class="label">Dernier jour complet (J)</div><div class="value navy" id="obsJ">–</div><div class="sub" id="dayJ"></div></div>
     <div class="card"><div class="label">Débit Mille Îles – Bois-des-Filion</div><div class="value navy" id="dbdf">–</div><div class="sub" id="dbdftime"></div></div>
     <div class="card wide"><div class="label">Prévision demain (J+1) · débit <span id="qarrow" title="tendance du débit sur 7 jours (le pourcentage, quand il apparaît, est la part des fois où le sens de la flèche s’est avéré juste)"></span></div><div class="value red" id="fc1">–</div><div class="sub" id="fc1m"></div></div>
+    <div class="card wide" id="winCard" style="display:none"><div class="label">Fenêtre idéale (d’après ton journal)</div><div id="win" style="margin:4px 0;font-size:1.05rem;line-height:1.5"></div><div class="sub" id="winsub"></div></div>
     <div class="card wide"><div class="label">Wetsuit suggérée</div><div class="value" id="wetsuit" style="font-size:1.35rem">–</div><div class="sub" id="wetsuitsub"></div></div>
   </div>
   <div class="chart-wrap"><div class="ctitle">Niveau des 24 dernières heures, au pas de 5 minutes <span id="finesrc" class="sub" style="font-weight:400"></span></div><canvas id="chartday"></canvas></div>
@@ -121,8 +123,20 @@
 <script>
 const fmt = v => (v == null ? '–' : (v >= 0 ? '+' : '') + v.toFixed(2) + ' m');
 const fdate = s => { const d = new Date(s + 'T12:00:00'); return d.toLocaleDateString('fr-CA', { weekday: 'short', day: 'numeric', month: 'short' }); };
+// ---- lever / coucher du soleil (NOAA, précision ~1 min), heure locale de l'appareil
+function sunTimes(date, lat, lon) {
+  const rad = Math.PI / 180, noon = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12);   // midi local du jour demandé
+  const n = Math.round(noon.getTime() / 864e5 - 10957.5), Js = n - lon / 360;                         // jours depuis J2000 (midi UTC) ; lon négatif à l'ouest
+  const M = ((357.5291 + 0.98560028 * Js) % 360 + 360) % 360, C = 1.9148 * Math.sin(M * rad) + 0.02 * Math.sin(2 * M * rad) + 0.0003 * Math.sin(3 * M * rad);
+  const L = (M + C + 180 + 102.9372) % 360, Jt = 2451545 + Js + 0.0053 * Math.sin(M * rad) - 0.0069 * Math.sin(2 * L * rad);
+  const dec = Math.asin(Math.sin(L * rad) * Math.sin(23.4397 * rad));
+  const w = Math.acos((Math.sin(-0.833 * rad) - Math.sin(lat * rad) * Math.sin(dec)) / (Math.cos(lat * rad) * Math.cos(dec)));
+  const toDate = jd => new Date((jd - 2440587.5) * 864e5), f = x => x.toLocaleTimeString('fr-CA', { hour: 'numeric', minute: '2-digit' });
+  const rise = toDate(Jt - w / (2 * Math.PI)), set = toDate(Jt + w / (2 * Math.PI)), mins = Math.round((set - rise) / 60000);
+  return { rise: f(rise), set: f(set), len: Math.floor(mins / 60) + ' h ' + String(mins % 60).padStart(2, '0') };
+}
 // ---- Plage idéale (réservée aux personnes connectées au journal privé : jeton dans ce navigateur)
-let plage = null, liveLevel = null, liveQ = null;
+let plage = null, liveLevel = null, liveQ = null, liveBdf = null, SPINE_H = null;
 function markIdeal() {
   if (!plage) return;
   const set = (id, subId, v, lo, hi, txt) => {
@@ -134,8 +148,25 @@ function markIdeal() {
     const s = document.createElement('span'); s.className = ok ? 'ideal-tag' : 'bad-tag';
     s.textContent = ok ? ' · dans ta plage idéale' : ' · hors plage (' + txt(lo) + ' → ' + txt(hi) + ')'; sub.appendChild(s);
   };
+  const fq = v => Math.round(v).toLocaleString('fr-CA') + ' m³/s';
   set('live', 'livetime', liveLevel, plage.nmin, plage.nmax, v => fmt(v));
-  set('disch', 'dischtime', liveQ, plage.qmin, plage.qmax, v => Math.round(v).toLocaleString('fr-CA') + ' m³/s');
+  set('disch', 'dischtime', liveQ, plage.qmin, plage.qmax, fq);
+  set('dbdf', 'dbdftime', liveBdf, plage.bmin, plage.bmax, fq);
+  idealWindow();
+}
+// Fenêtre idéale : heures d'aujourd'hui (à venir) et de demain où le niveau prévu (SPINE horaire, corrigé quand possible) est dans ta plage
+function idealWindow() {
+  const card = document.getElementById('winCard'); if (!plage || plage.nmin == null || !SPINE_H || !SPINE_H.length) { card.style.display = 'none'; return; }
+  const now = Date.now(), days = {};
+  for (const p of SPINE_H) { const t = new Date(p.t).getTime(); if (t < now - 3600e3) continue; const dstr = new Date(t).toLocaleDateString('fr-CA'); (days[dstr] = days[dstr] || []).push({ t, ok: p.v >= plage.nmin && p.v <= plage.nmax, v: p.v }); }
+  const todayStr = new Date().toLocaleDateString('fr-CA'), tomorrowStr = new Date(now + 864e5).toLocaleDateString('fr-CA');
+  const hh = t => new Date(t).getHours() + ' h';
+  const ranges = pts => { const out = []; let cur = null; for (const p of pts) { if (p.ok) { if (!cur) cur = { a: p.t, b: p.t }; else cur.b = p.t; } else if (cur) { out.push(cur); cur = null; } } if (cur) out.push(cur); return out; };
+  const line = (label, pts) => { if (!pts || !pts.length) return ''; const r = ranges(pts); const txt = r.length ? r.map(x => x.a === x.b ? 'vers ' + hh(x.a) : 'de ' + hh(x.a) + ' à ' + hh(x.b + 3600e3)).join(', ') : (pts.every(p => p.v > plage.nmax) ? 'trop haut toute la période' : pts.every(p => p.v < plage.nmin) ? 'trop bas toute la période' : 'hors plage'); return `<div><strong>${label}</strong> : <span class="${r.length ? 'ideal-tag' : 'bad-tag'}">${txt}</span></div>`; };
+  const html = line('Aujourd’hui (reste de la journée)', days[todayStr]) + line('Demain', days[tomorrowStr]);
+  if (!html) { card.style.display = 'none'; return; }
+  document.getElementById('win').innerHTML = html; document.getElementById('winsub').textContent = `plage de niveau ${fmt(plage.nmin)} → ${fmt(plage.nmax)} (bonnes sessions ± tolérance) · prévision horaire SPINE${SPINE_H.adj ? ' corrigée' : ''} · indicatif`;
+  card.style.display = '';
 }
 (async () => {
   try {
@@ -148,14 +179,25 @@ function markIdeal() {
     const j = await r.json(); const data = JSON.parse(decodeURIComponent(escape(atob(j.content.replace(/\n/g, '')))));
     const good = (data.sessions || []).filter(s => s.note && +s.note >= min && s.debit != null && (!spot || s.spot === spot));
     if (!good.length) return;   // journal connecté mais aucune bonne session : rien n'est affiché
-    const qs = good.map(s => +s.debit), ns = good.filter(s => s.niveau != null).map(s => +s.niveau);
-    // même logique que le vérificateur du journal : plage des bonnes sessions élargie des tolérances (niveau ignoré si la tolérance niveau est vide)
-    plage = { qmin: Math.min(...qs) - tolQ, qmax: Math.max(...qs) + tolQ, nmin: (ns.length && tolN != null) ? Math.min(...ns) - tolN : null, nmax: (ns.length && tolN != null) ? Math.max(...ns) + tolN : null };
+    // même logique que le vérificateur du journal : plage des bonnes sessions élargie des tolérances, par station de débit
+    const las = good.filter(s => (s.station || 'las') === 'las').map(s => +s.debit), bdf = good.filter(s => s.station === 'bdf').map(s => +s.debit);
+    const ns = good.filter(s => s.niveau != null && (s.station || 'las') === 'las').map(s => +s.niveau);
+    plage = { qmin: las.length ? Math.min(...las) - tolQ : null, qmax: las.length ? Math.max(...las) + tolQ : null,
+              bmin: bdf.length ? Math.min(...bdf) - tolQ : null, bmax: bdf.length ? Math.max(...bdf) + tolQ : null,
+              nmin: (ns.length && tolN != null) ? Math.min(...ns) - tolN : null, nmax: (ns.length && tolN != null) ? Math.max(...ns) + tolN : null };
     markIdeal();
   } catch (e) { /* pas de journal sur cet appareil */ }
 })();
 fetch('data.json?t=' + Date.now()).then(r => r.json()).then(d => {
   document.getElementById('updated').textContent = 'Mis à jour le ' + new Date(d.generated).toLocaleString('fr-CA', { dateStyle: 'medium', timeStyle: 'short' }) + '.';
+  // bandeau si quelque chose est en retard : site (> 3 h), niveau SHC (> 2 h), débit ECCC (> 6 h)
+  try {
+    const ageH = s => (Date.now() - new Date(s).getTime()) / 3600e3, late = [];
+    if (ageH(d.generated) > 3) late.push(`le site ne s’est pas mis à jour depuis ${Math.round(ageH(d.generated))} h`);
+    if (d.live && ageH(d.live.time) > 2) late.push(`dernier niveau du SHC il y a ${Math.round(ageH(d.live.time))} h`); else if (!d.live) late.push('niveau en direct indisponible');
+    if (d.discharge && ageH(d.discharge.time) > 6) late.push(`dernier débit ECCC il y a ${Math.round(ageH(d.discharge.time))} h`); else if (!d.discharge) late.push('débit en direct indisponible');
+    if (late.length) { const b = document.getElementById('stale'); b.textContent = '⚠ Données en retard : ' + late.join(' · ') + '. Les valeurs affichées peuvent être périmées.'; b.style.display = 'block'; }
+  } catch (e) {}
   if (d.ice) document.getElementById('icewarn').style.display = 'block';
   if (d.live) { liveLevel = d.live.value; document.getElementById('live').textContent = fmt(d.live.value); document.getElementById('livetime').textContent = 'lecture du ' + new Date(d.live.time).toLocaleString('fr-CA', { dateStyle: 'short', timeStyle: 'short' }); }
   else { liveLevel = d.partial_today; document.getElementById('live').textContent = d.partial_today != null ? fmt(d.partial_today) : '–'; document.getElementById('livetime').textContent = d.partial_today != null ? 'moyenne partielle d’aujourd’hui' : 'indisponible'; }
@@ -163,9 +205,11 @@ fetch('data.json?t=' + Date.now()).then(r => r.json()).then(d => {
   if (d.water_temp) { document.getElementById('wtemp').textContent = d.water_temp.value.toFixed(1).replace('.', ',') + ' °C'; document.getElementById('wtemptime').textContent = (d.water_temp.value * 9 / 5 + 32).toFixed(1).replace('.', ',') + ' °F · capteur de la station · ' + ftime(d.water_temp.time); } else document.getElementById('wtemptime').textContent = 'indisponible';
   if (d.discharge) { liveQ = d.discharge.value; document.getElementById('disch').textContent = d.discharge.value.toLocaleString('fr-CA') + ' m³/s'; document.getElementById('dischtime').textContent = 'ECCC 02OA016 · ' + ftime(d.discharge.time); } else document.getElementById('dischtime').textContent = 'indisponible';
   markIdeal();
-  if (d.discharge_bdf) { document.getElementById('dbdf').textContent = d.discharge_bdf.value.toLocaleString('fr-CA') + ' m³/s'; document.getElementById('dbdftime').textContent = 'ECCC 02OA003 · ' + ftime(d.discharge_bdf.time); } else document.getElementById('dbdftime').textContent = 'indisponible';
+  SPINE_H = (d.spine_adj && d.spine_adj.length) ? d.spine_adj : d.spine_hourly; if (SPINE_H) SPINE_H.adj = !!(d.spine_adj && d.spine_adj.length);
+  if (d.discharge_bdf) { liveBdf = d.discharge_bdf.value; document.getElementById('dbdf').textContent = d.discharge_bdf.value.toLocaleString('fr-CA') + ' m³/s'; document.getElementById('dbdftime').textContent = 'ECCC 02OA003 · ' + ftime(d.discharge_bdf.time); } else document.getElementById('dbdftime').textContent = 'indisponible';
   const a = d.air;
   if (a) { document.getElementById('atemp').textContent = a.temp.toFixed(1).replace('.', ',') + ' °C'; document.getElementById('atempsub').textContent = 'ressenti ' + a.feels.toFixed(0) + ' °C · ' + ftime(a.time); } else document.getElementById('atempsub').textContent = 'indisponible';
+  try { const sun = sunTimes(new Date(), 45.52, -73.55); const sp = document.createElement('div'); sp.textContent = `☀ ${sun.rise} → ${sun.set} (${sun.len} de jour)`; document.getElementById('atempsub').appendChild(sp); } catch (e) {}
   // Wetsuit : d'abord la température de l'eau, puis un cran de plus si l'air est froid ou le vent fort
   if (d.water_temp && a) {
     const w = d.water_temp.value, t = a.feels, v = Math.max(a.wind, a.gust * 0.6);
