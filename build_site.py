@@ -253,6 +253,14 @@ def main():
             ms_flow = {"date": last[0].isoformat(), "hour": last[1], "value": last[2], "previous": (prev[2] if prev else None)}
     except Exception as e:
         print("débit lac Ontario (CMI) indisponible :", e)
+    # météo en direct à Montréal (Open-Meteo, licence CC BY 4.0) : température de l'air, ressenti, vent
+    air = None
+    try:
+        import requests
+        j = requests.get("https://api.open-meteo.com/v1/forecast", timeout=30, params={"latitude": 45.529, "longitude": -73.543, "current": "temperature_2m,apparent_temperature,wind_speed_10m,wind_gusts_10m,wind_direction_10m", "timezone": "America/Toronto"}).json()["current"]
+        air = {"time": j["time"], "temp": j["temperature_2m"], "feels": j["apparent_temperature"], "wind": j["wind_speed_10m"], "gust": j["wind_gusts_10m"], "dir": j["wind_direction_10m"]}
+    except Exception as e:
+        print("météo indisponible :", e)
     days60 = [d for d in sorted(hist) if d <= J][-60:]
     data = {
         "generated": dt.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -260,7 +268,7 @@ def main():
         "day_J": J.isoformat(), "obs_J": round(h[J]["frontenac_zc"], 3), "pc_J": round(h[J]["pointeclaire_igld85"], 3), "sa_J": round(h[J]["steanne_igld85"], 3),
         "residual": round(res, 3), "ice": pf.is_ice(J), "model": model_used, "britannia_q": (round(br[J]) if J in br else None), "live": live, "water_temp": water_temp, "discharge": discharge,
         "partial_today": (round(partial["frontenac_zc"], 3) if partial and partial["frontenac_zc"] is not None else None),
-        "history": [{"date": d.isoformat(), "obs": round(hist[d]["frontenac_zc"], 3)} for d in days60], "hourly": hourly, "spine_hourly": spine_hourly, "spine_adj": spine_adj, "skill": skill, "stat_skill": stat_skill, "q_forecast": q_fc, "discharge_bdf": discharge_bdf, "ms_flow": ms_flow, "q_anchor_day": (round(q_las[J]) if J in q_las else None),
+        "history": [{"date": d.isoformat(), "obs": round(hist[d]["frontenac_zc"], 3)} for d in days60], "hourly": hourly, "spine_hourly": spine_hourly, "spine_adj": spine_adj, "skill": skill, "stat_skill": stat_skill, "q_forecast": q_fc, "discharge_bdf": discharge_bdf, "air": air, "ms_flow": ms_flow, "q_anchor_day": (round(q_las[J]) if J in q_las else None),
         "forecast": [{"date": d.isoformat(), "level": round(l, 3), "margin": round(m, 3), "spine": (round(spine[d], 3) if d in spine else None)} for d, l, m in fc],
     }
     with open(os.path.join(DOCS, "data.json"), "w", encoding="utf-8") as f:
