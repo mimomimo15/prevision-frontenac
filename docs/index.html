@@ -41,6 +41,18 @@
 
   .warn { background:var(--warnbg); border-left:4px solid #e0a800; padding:10px 12px; border-radius:8px; font-size:.9rem; margin-bottom:12px; }
   footer { font-size:.78rem; color:var(--muted); padding:16px; text-align:center; line-height:1.5; }
+  @media (max-width: 640px) {
+    header { padding:14px 12px; } header h1 { font-size:1.05rem; } header p { font-size:.78rem; }
+    main { padding:10px; }
+    .cards { grid-template-columns: 1fr 1fr; gap:8px; }
+    .card { padding:10px 12px; border-radius:10px; } .card .value { font-size:1.35rem; } .card .label { font-size:.68rem; } .card .sub { font-size:.74rem; }
+    .card:last-child { grid-column: 1 / -1; }
+    .chart-wrap { padding:8px 4px 4px; } .ctitle { font-size:.8rem; margin:2px 6px 6px; }
+    canvas { height:240px !important; }
+    table { font-size:.82rem; } th, td { padding:8px 6px; }
+    th:nth-child(3), td:nth-child(3), th:nth-child(4), td:nth-child(4) { display:none; }
+    .note { font-size:.78rem; }
+  }
   a { color:var(--navy); }
 </style>
 </head>
@@ -122,6 +134,8 @@ fetch('data.json?t=' + Date.now()).then(r => r.json()).then(d => {
   if (d.stat_skill) skillTxt += ` · Modèle statistique à J+1 : ±${(d.stat_skill.rmse_J1*100).toFixed(0)} cm (${d.stat_skill.n} jours).`;
   document.getElementById('skill').innerHTML = skillTxt;
   document.getElementById('method').innerHTML = (d.model === 'v2' ? `<strong>Méthode (modèle v2) :</strong> régression par horizon sur les niveaux amont (Pointe-Claire ${d.pc_J.toFixed(2)} m, Sainte-Anne-de-Bellevue ${d.sa_J.toFixed(2)} m, IGLD85), le niveau observé à Frontenac le jour J, leurs tendances, et le débit de la rivière des Outaouais à Ottawa–Britannia (${d.britannia_q != null ? d.britannia_q.toLocaleString('fr-CA') + ' m³/s' : '–'}, 2 jours en amont). Validation croisée 2019–2024 : erreur typique hors glace 5,6 cm à J+1, 11 cm à J+2, 15 cm à J+3.` : `<strong>Méthode :</strong> niveau prévu = modèle amont (lac Saint-Louis à Pointe-Claire ${d.pc_J.toFixed(2)} m, lac des Deux Montagnes à Sainte-Anne-de-Bellevue ${d.sa_J.toFixed(2)} m, IGLD85) + composante aval observée le jour J (${fmt(d.residual)}) qui décroît de 16 % par jour. Régression calibrée sur 2019–2025 (erreur typique à J+1 : 5–6 cm hors glace).`);
+  const MOB = window.matchMedia('(max-width: 640px)').matches;
+  Chart.defaults.font.size = MOB ? 10 : 12;
   const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
   const C_OBS = css('--obs'), C_RED = css('--red'), C_SPINE = css('--spine'), C_GRID = css('--grid'), C_GRID0 = css('--grid0'), C_TXT = css('--text');
   Chart.defaults.color = C_TXT; Chart.defaults.borderColor = C_GRID;
@@ -134,8 +148,8 @@ fetch('data.json?t=' + Date.now()).then(r => r.json()).then(d => {
       type: 'line',
       data: { datasets: [{ label: 'Niveau observé (5 min)', data: pts, borderColor: C_OBS, backgroundColor: C_OBS, pointRadius: 0, borderWidth: 2, tension: 0.2 }] },
       options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'nearest', intersect: false }, parsing: false,
-        scales: { x: { type: 'time', time: { unit: 'hour', stepSize: 2 }, ticks: { callback: v => new Date(v).toLocaleTimeString('fr-CA', { hour: '2-digit', minute: '2-digit' }), maxRotation: 0 }, grid: { color: C_GRID } },
-                  y: { title: { display: true, text: 'm (zéro des cartes)' } } },
+        scales: { x: { type: 'time', time: { unit: 'hour', stepSize: MOB ? 4 : 2 }, ticks: { callback: v => new Date(v).toLocaleTimeString('fr-CA', { hour: '2-digit', minute: '2-digit' }), maxRotation: 0, maxTicksLimit: MOB ? 7 : 13 }, grid: { color: C_GRID } },
+                  y: { title: { display: !MOB, text: 'm (zéro des cartes)' } } },
         plugins: { legend: { display: false },
           tooltip: { callbacks: { title: items => new Date(items[0].parsed.x).toLocaleString('fr-CA', { weekday: 'short', hour: '2-digit', minute: '2-digit' }), label: c => c.parsed.y.toFixed(3) + ' m' } } } }
     });
@@ -171,10 +185,10 @@ fetch('data.json?t=' + Date.now()).then(r => r.json()).then(d => {
       { label: 'Modèle statistique (moyenne du jour)', data: f.slice(0, 2).map(x => ({ x: new Date(x.date + 'T12:00:00').getTime(), y: x.level })), borderColor: C_RED, backgroundColor: C_RED, pointRadius: 5, pointStyle: 'rectRot', showLine: false }
     ] },
     options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'nearest', intersect: false }, parsing: false,
-      scales: { x: { type: 'time', time: { unit: 'hour', stepSize: 6 }, ticks: { callback: v => new Date(v).toLocaleString('fr-CA', fr48), maxRotation: 0 },
+      scales: { x: { type: 'time', time: { unit: 'hour', stepSize: MOB ? 12 : 6 }, ticks: { callback: v => new Date(v).toLocaleString('fr-CA', fr48), maxRotation: 0, maxTicksLimit: MOB ? 7 : 13 },
                      grid: { color: ctx => (ctx.tick && new Date(ctx.tick.value).getHours() === 0) ? C_GRID0 : C_GRID } },
-                y: { title: { display: true, text: 'm (zéro des cartes)' } } },
-      plugins: { legend: { position: 'bottom' },
+                y: { title: { display: !MOB, text: 'm (zéro des cartes)' } } },
+      plugins: { legend: { position: 'bottom', labels: { boxWidth: MOB ? 10 : 40, padding: MOB ? 8 : 10, font: { size: MOB ? 9 : 12 } } },
         tooltip: { callbacks: { title: items => new Date(items[0].parsed.x).toLocaleString('fr-CA', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }),
                                 label: c => c.dataset.label + ' : ' + c.parsed.y.toFixed(2) + ' m' } } } }
   });
@@ -194,10 +208,10 @@ fetch('data.json?t=' + Date.now()).then(r => r.json()).then(d => {
     ] },
     options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'nearest', intersect: false }, parsing: false,
       scales: {
-        x: { type: 'time', time: { unit: 'day' }, ticks: { callback: v => new Date(v).toLocaleDateString('fr-CA', fr), maxRotation: 0, autoSkip: true },
+        x: { type: 'time', time: { unit: 'day' }, ticks: { callback: v => new Date(v).toLocaleDateString('fr-CA', MOB ? { day: 'numeric', month: 'short' } : fr), maxRotation: 0, autoSkip: true, maxTicksLimit: MOB ? 6 : 11 },
              grid: { color: ctx => (ctx.tick && new Date(ctx.tick.value).getHours() === 0) ? C_GRID0 : 'transparent' } },
-        y: { title: { display: true, text: 'm (zéro des cartes)' } } },
-      plugins: { legend: { position: 'bottom' },
+        y: { title: { display: !MOB, text: 'm (zéro des cartes)' } } },
+      plugins: { legend: { position: 'bottom', labels: { boxWidth: MOB ? 10 : 40, padding: MOB ? 8 : 10, font: { size: MOB ? 9 : 12 } } },
         tooltip: { callbacks: { title: items => new Date(items[0].parsed.x).toLocaleString('fr-CA', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }),
                                 label: c => c.dataset.label + ' : ' + c.parsed.y.toFixed(2) + ' m' } } } }
   });
