@@ -107,7 +107,7 @@ fetch('data.json?t=' + Date.now()).then(r => r.json()).then(d => {
     data: { datasets: [
       { label: 'Observé (horaire)', data: obs24, borderColor: C_OBS, backgroundColor: C_OBS, pointRadius: 0, borderWidth: 2, tension: 0 },
       { label: 'SPINE horaire (SHC, officiel)', data: sph, borderColor: C_SPINE, backgroundColor: C_SPINE, borderDash: [4, 3], pointRadius: 0, borderWidth: 2, tension: 0 },
-      { label: 'SPINE ajusté (auto-apprentissage)', data: (d.spine_adj || []).map(p => ({ x: new Date(p.t).getTime(), y: p.v })), borderColor: '#e8871e', backgroundColor: '#e8871e', pointRadius: 0, borderWidth: 2.5, tension: 0, hidden: !(d.spine_adj && d.spine_adj.length) },
+      ...((d.spine_adj && d.spine_adj.length) ? [{ label: 'SPINE ajusté (auto-apprentissage)', data: d.spine_adj.map(p => ({ x: new Date(p.t).getTime(), y: p.v })), borderColor: '#e8871e', backgroundColor: '#e8871e', pointRadius: 0, borderWidth: 2.5, tension: 0 }] : []),
       { label: 'Modèle statistique (moyenne du jour)', data: f.slice(0, 2).map(x => ({ x: new Date(x.date + 'T12:00:00').getTime(), y: x.level })), borderColor: C_RED, backgroundColor: C_RED, pointRadius: 5, pointStyle: 'rectRot', showLine: false }
     ] },
     options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'nearest', intersect: false }, parsing: false,
