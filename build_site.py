@@ -60,6 +60,21 @@ def main():
     if J1 not in hist: sys.exit("Données de J-1 manquantes")
     h = hist
     res, fc = pf.forecast(J, h[J]["frontenac_zc"], h[J]["pointeclaire_igld85"], h[J1]["pointeclaire_igld85"], h[J]["steanne_igld85"], h[J1]["steanne_igld85"])
+    model_used = "v1"
+    # ---- modèle v2 : rivière des Outaouais à Ottawa (Britannia), archive glissante locale
+    BR = os.path.join(DOCS, "britannia.csv"); br = {}
+    if os.path.exists(BR):
+        with open(BR, newline="", encoding="utf-8") as f:
+            for r in csv.DictReader(f): br[dt.date.fromisoformat(r["date"])] = float(r["q"])
+    for d, v in pf.fetch_eccc_discharge_daily("02KF005").items(): br[d] = v
+    br = {d: v for d, v in br.items() if d >= J - dt.timedelta(days=400)}
+    with open(BR, "w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f); w.writerow(["date", "q"]); [w.writerow([d.isoformat(), f"{br[d]:.1f}"]) for d in sorted(br)]
+    J2 = J - dt.timedelta(days=2)
+    if all(d in br for d in (J, J1, J2)):
+        fc = pf.forecast_v2(J, h[J]["frontenac_zc"], h[J]["pointeclaire_igld85"], h[J1]["pointeclaire_igld85"], h[J]["steanne_igld85"], h[J1]["steanne_igld85"], br[J], br[J1], br[J2])
+        model_used = "v2"
+    print("modèle utilisé :", model_used)
     spine = {}
     try:
         spine = pf.fetch_iwls_daily("fr", J + dt.timedelta(days=1), J + dt.timedelta(days=7), series="wlf-spine")
@@ -225,7 +240,7 @@ def main():
         "generated": dt.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
         "station": "Montréal, rue Frontenac (SHC 15540)", "datum_note": "mètres au-dessus du zéro des cartes (IGLD85 = ZC + 5,35 m)",
         "day_J": J.isoformat(), "obs_J": round(h[J]["frontenac_zc"], 3), "pc_J": round(h[J]["pointeclaire_igld85"], 3), "sa_J": round(h[J]["steanne_igld85"], 3),
-        "residual": round(res, 3), "ice": pf.is_ice(J), "live": live, "water_temp": water_temp, "discharge": discharge,
+        "residual": round(res, 3), "ice": pf.is_ice(J), "model": model_used, "britannia_q": (round(br[J]) if J in br else None), "live": live, "water_temp": water_temp, "discharge": discharge,
         "partial_today": (round(partial["frontenac_zc"], 3) if partial and partial["frontenac_zc"] is not None else None),
         "history": [{"date": d.isoformat(), "obs": round(hist[d]["frontenac_zc"], 3)} for d in days60], "hourly": hourly, "spine_hourly": spine_hourly, "spine_adj": spine_adj, "skill": skill, "stat_skill": stat_skill, "q_forecast": q_fc, "discharge_bdf": discharge_bdf, "q_anchor_day": (round(q_las[J]) if J in q_las else None),
         "forecast": [{"date": d.isoformat(), "level": round(l, 3), "margin": round(m, 3), "spine": (round(spine[d], 3) if d in spine else None)} for d, l, m in fc],
