@@ -11,9 +11,9 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
 <style>
-  :root { --green:#1a8f3c; --navy:#1F3864; --red:#C00000; --grey:#8a8a8a; --bg:#f6f7fa; --card:#ffffff; --text:#1b1b1b; --muted:#666; --head:#e9eef7; --line:#eeeeee; --grid:#e5e5e5; --grid0:#bbbbbb; --obs:#1F3864; --spine:#2E75B6; --warnbg:#fff4d6; color-scheme: light dark; }
+  :root { --green:#1a8f3c; --bad:#C00000; --navy:#1F3864; --red:#D9730D; --grey:#8a8a8a; --bg:#f6f7fa; --card:#ffffff; --text:#1b1b1b; --muted:#666; --head:#e9eef7; --line:#eeeeee; --grid:#e5e5e5; --grid0:#bbbbbb; --obs:#1F3864; --spine:#2E75B6; --warnbg:#fff4d6; color-scheme: light dark; }
   @media (prefers-color-scheme: dark) {
-    :root { --green:#5fd37f; --navy:#9ab4e8; --red:#ff6b6b; --bg:#121418; --card:#1c1f26; --text:#e8e8e8; --muted:#a0a6b3; --head:#262b36; --line:#2c3140; --grid:#2c3140; --grid0:#4a5063; --obs:#9ab4e8; --spine:#6fa8ff; --warnbg:#3a3010; }
+    :root { --green:#5fd37f; --bad:#ff6b6b; --navy:#9ab4e8; --red:#ffa94d; --bg:#121418; --card:#1c1f26; --text:#e8e8e8; --muted:#a0a6b3; --head:#262b36; --line:#2c3140; --grid:#2c3140; --grid0:#4a5063; --obs:#9ab4e8; --spine:#6fa8ff; --warnbg:#3a3010; }
     header { background:#0e1a33; }
   }
   * { box-sizing: border-box; }
@@ -31,7 +31,7 @@
   #qarrow { font-size:1.1rem; font-weight:700; color:var(--red); text-transform:none; }
   .card .value { font-size:1.7rem; font-weight:700; margin:4px 0 0; }
   .card .sub { font-size:.85rem; color:var(--muted); }
-  .red { color:var(--red); } .navy { color:var(--navy); } .ideal { color:var(--green) !important; } .ideal-tag { color:var(--green); font-weight:600; }
+  .red { color:var(--red); } .navy { color:var(--navy); } .ideal { color:var(--green) !important; } .ideal-tag { color:var(--green); font-weight:600; } .bad { color:var(--bad) !important; } .bad-tag { color:var(--bad); font-weight:600; }
   .chart-wrap { background:var(--card); border-radius:12px; padding:12px; box-shadow:0 1px 3px rgba(0,0,0,.08); margin-bottom:16px; }
   canvas { width:100% !important; height:320px !important; }
   .ctitle { font-size:.9rem; font-weight:600; color:var(--navy); margin:2px 4px 8px; }
@@ -109,13 +109,15 @@ function markIdeal() {
   if (!plage) return;
   const set = (id, subId, v, lo, hi, txt) => {
     const el = document.getElementById(id), sub = document.getElementById(subId);
-    const old = sub.querySelector('.ideal-tag'); if (old) old.remove();
-    if (v == null || lo == null) { el.classList.remove('ideal'); return; }
-    const ok = v >= lo && v <= hi; el.classList.toggle('ideal', ok);
-    if (ok) { const s = document.createElement('span'); s.className = 'ideal-tag'; s.textContent = ' · ' + txt; sub.appendChild(s); }
+    sub.querySelectorAll('.ideal-tag, .bad-tag').forEach(x => x.remove());
+    el.classList.remove('ideal', 'bad');
+    if (v == null || lo == null) return;
+    const ok = v >= lo && v <= hi; el.classList.add(ok ? 'ideal' : 'bad');
+    const s = document.createElement('span'); s.className = ok ? 'ideal-tag' : 'bad-tag';
+    s.textContent = ok ? ' · dans ta plage idéale' : ' · hors plage (' + txt(lo) + ' → ' + txt(hi) + ')'; sub.appendChild(s);
   };
-  set('live', 'livetime', liveLevel, plage.nmin, plage.nmax, 'dans ta plage idéale');
-  set('disch', 'dischtime', liveQ, plage.qmin, plage.qmax, 'dans ta plage idéale');
+  set('live', 'livetime', liveLevel, plage.nmin, plage.nmax, v => fmt(v));
+  set('disch', 'dischtime', liveQ, plage.qmin, plage.qmax, v => Math.round(v).toLocaleString('fr-CA') + ' m³/s');
 }
 (async () => {
   try {
