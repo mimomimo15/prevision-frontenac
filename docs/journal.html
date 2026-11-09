@@ -38,6 +38,12 @@
   button:disabled { opacity:.5; cursor:default; }
   .actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
   .verdict { font-size:1.2rem; font-weight:700; padding:10px 12px; border-radius:8px; background:var(--okbg); margin:8px 0; }
+  .near { border:2px solid var(--navy); border-radius:10px; padding:10px 12px; margin:10px 0 6px; background:var(--card); }
+  .near-t { font-weight:700; color:var(--navy); margin-bottom:6px; }
+  .near-row { padding:8px 0; border-top:1px solid var(--line); } .near-row:first-of-type { border-top:0; }
+  .near-row.in { border-left:4px solid var(--navy); padding-left:8px; margin-left:-4px; }
+  .near-h { font-weight:600; display:flex; gap:6px; align-items:center; flex-wrap:wrap; } .near-h .stars { margin-left:auto; }
+  .near-d { font-size:1.05rem; } .near-c { font-size:.95rem; margin-top:2px; } .near-k { font-style:italic; color:var(--text); margin-top:3px; opacity:.9; }
   .muted { color:var(--muted); font-size:.85rem; }
   .warn { background:var(--warnbg); padding:10px 12px; border-radius:8px; font-size:.9rem; }
   table { width:100%; border-collapse:collapse; font-size:.9rem; } th, td { padding:8px 6px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; } th { background:var(--head); color:var(--navy); font-size:.8rem; }
@@ -105,9 +111,9 @@
     <p class="muted small">Une session compte comme « semblable » si son débit et son niveau sont dans ces marges. Laisse « Niveau ± » vide pour comparer seulement le débit.</p>
   </details>
   <div class="actions"><button class="sec" id="btnLive">Reprendre les conditions en direct</button></div>
+  <div id="closest"></div>
   <div id="verdict" class="verdict">Entre le débit du jour</div>
   <div id="verdictDetail" class="muted"></div>
-  <div id="closest"></div>
 </div>
 
 <div class="card">
@@ -219,7 +225,7 @@ function verify() {
   $('verdict').textContent = v;
   $('verdictDetail').textContent = nIn ? `${nIn} session${nIn > 1 ? 's' : ''} à ± ${tq} m³/s${useN ? ' et ± ' + tn + ' m' : ''} · note moyenne ${mean.toFixed(1)} / 5` : (cand.length ? `${cand.length} session(s) au total, aucune dans la plage` : '');
   const top = cand.sort((a, b) => a.dist - b.dist).slice(0, 3);
-  $('closest').innerHTML = top.length ? '<p class="muted" style="margin:8px 0 4px">Les 3 sessions les plus proches :</p>' + top.map(c => `<div class="muted">• ${c.s.date} · ${c.s.spot || ''} · ${c.s.debit} m³/s${c.s.niveau != null ? ' · ' + c.s.niveau.toFixed(2) + ' m' : ''} · <span class="stars">${'★'.repeat(+c.s.note)}</span> ${c.s.forme || ''}${c.s.commentaire ? ' — ' + esc(c.s.commentaire) : ''}</div>`).join('') : '';
+  $('closest').innerHTML = top.length ? `<div class="near"><div class="near-t">Les ${top.length} session${top.length > 1 ? 's' : ''} les plus proches de ces conditions</div>` + top.map(c => `<div class="near-row${c.inRange ? ' in' : ''}"><div class="near-h"><span class="near-d">${c.s.date}</span> · ${c.s.spot || ''}${c.s.qui ? ' · ' + esc(c.s.qui) : ''}<span class="stars">${'★'.repeat(+c.s.note)}</span></div><div class="near-c">${c.s.debit} m³/s <span class="muted">(${c.s.debit - q >= 0 ? '+' : ''}${Math.round(c.s.debit - q)})</span>${c.s.niveau != null ? ` · ${c.s.niveau.toFixed(2)} m` + (n != null ? ` <span class="muted">(${c.s.niveau - n >= 0 ? '+' : ''}${(100 * (c.s.niveau - n)).toFixed(0)} cm)</span>` : '') : ''}${c.s.forme ? ' · ' + esc(c.s.forme) : ''}${c.s.forme2 ? ' / ' + esc(c.s.forme2) : ''}</div>${c.s.commentaire ? `<div class="near-k">« ${esc(c.s.commentaire)} »</div>` : ''}</div>`).join('') + '</div>' : '';
 }
 function plage() {
   const min = parseFloat($('pMin').value) || 4, spot = $('pSpot').value;
