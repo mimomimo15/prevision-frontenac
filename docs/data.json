@@ -1,5 +1,5 @@
 {
- "generated": "2026-11-09T02:27:34Z",
+ "generated": "2026-11-09T02:30:54Z",
  "station": "Montréal, rue Frontenac (SHC 15540)",
  "datum_note": "mètres au-dessus du zéro des cartes (IGLD85 = ZC + 5,35 m)",
  "day_J": "2026-11-07",
@@ -9,11 +9,11 @@
  "residual": 0.136,
  "ice": 0,
  "live": {
-  "time": "2026-11-09T02:15:00Z",
-  "value": -0.008
+  "time": "2026-11-09T02:30:00Z",
+  "value": -0.015
  },
  "water_temp": {
-  "time": "2026-11-09T02:15:00Z",
+  "time": "2026-11-09T02:30:00Z",
   "value": 11.4
  },
  "discharge": {
