@@ -101,6 +101,7 @@
   <h2>Ta plage idéale</h2>
   <div class="row"><div><label>Note minimale d’une « bonne » session</label><input id="pMin" type="number" min="1" max="5" value="4"></div><div><label>Vague / spot (vide = toutes)</label><select id="pSpot"><option value="">Toutes</option></select></div></div>
   <div id="plage" class="muted" style="margin-top:8px"></div>
+  <p class="muted small">Sur la page principale, le niveau et le débit en direct s’affichent en vert quand ils sont dans cette plage, élargie des tolérances ci-dessus (± débit, ± niveau), et en rouge sinon.</p>
 </div>
 
 <div class="card">
@@ -243,7 +244,8 @@ $('rows').addEventListener('click', async ev => {
 $('btnCancel').onclick = () => { resetForm(); $('saveMsg').textContent = ''; };
 $('btnSave').onclick = saveSession;
 $('btnLive').onclick = async () => { await fetchLive(); applyLive(); };
-for (const id of ['vDebit', 'vNiveau', 'vSpot', 'vTolQ', 'vTolN']) $(id).addEventListener('input', verify);
+for (const id of ['vDebit', 'vNiveau', 'vSpot', 'vTolQ', 'vTolN']) $(id).addEventListener('input', () => { LS.set('tolq', $('vTolQ').value); LS.set('toln', $('vTolN').value); verify(); });
+if (LS.get('tolq') !== '') $('vTolQ').value = LS.get('tolq'); if (localStorage.getItem('jv_toln') !== null) $('vTolN').value = LS.get('toln');
 for (const id of ['pMin', 'pSpot']) $(id).addEventListener('input', () => { LS.set('pmin', $('pMin').value); LS.set('pspot', $('pSpot').value); plage(); });
 if (LS.get('pmin')) $('pMin').value = LS.get('pmin');
 for (const id of ['lWho', 'lSpot']) $(id).addEventListener('change', renderList);
