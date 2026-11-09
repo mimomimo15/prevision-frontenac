@@ -233,6 +233,46 @@ def main():
                 v = list(errs.values()); stat_skill = {"rmse_J1": round((sum(x * x for x in v) / len(v)) ** 0.5, 3), "n": len(v)}
     except FileNotFoundError:
         pass
+    # ------------------------------------------------------------------ combinaison automatique modèle + SPINE
+    # Pour chaque échéance k (jours entre l'émission, en heure locale, et la date visée), on relit les archives et on
+    # ajuste obs ≈ a + w·modèle + (1−w)·SPINE sur les couples où le niveau réel est connu. Dès 30 couples, la prévision
+    # affichée devient ce mélange, avec une marge mesurée sur ses propres erreurs. Les poids se recalculent à chaque exécution.
+    combo = {}
+    try:
+        def last_runs(name):
+            out = {}
+            with open(os.path.join(DOCS, name), newline="", encoding="utf-8") as f:
+                for r in csv.DictReader(f):
+                    iloc = (dt.datetime.strptime(r["issued_utc"], "%Y-%m-%dT%H:%MZ") + pf.TZ).date()
+                    out[(iloc, dt.date.fromisoformat(r["target_date"]))] = float(r["level_zc"])     # dernière exécution du jour
+            return out
+        fa, sp_a = last_runs("forecast_archive.csv"), last_runs("spine_archive.csv")
+        pairs = {}
+        for (iloc, td), mval in fa.items():
+            if (iloc, td) in sp_a and td in hist and hist[td]["frontenac_zc"] is not None:
+                pairs.setdefault((td - iloc).days, []).append((mval, sp_a[(iloc, td)], hist[td]["frontenac_zc"]))
+        for k, P in pairs.items():
+            if len(P) < 30 or not (0 <= k <= 7): continue
+            x = [mv - sv for mv, sv, o in P]; y = [o - sv for mv, sv, o in P]; n = len(P)
+            mx, my = sum(x) / n, sum(y) / n; sxx = sum((xi - mx) ** 2 for xi in x)
+            w = (sum((xi - mx) * (yi - my) for xi, yi in zip(x, y)) / sxx) if sxx > 1e-9 else 1.0
+            w = min(max(w, 0.0), 1.0); a = my - w * mx
+            ec = [o - (a + w * mv + (1 - w) * sv) for mv, sv, o in P]; em = [o - mv for mv, sv, o in P]; es = [o - sv for mv, sv, o in P]
+            rm = lambda v: round((sum(t * t for t in v) / len(v)) ** 0.5, 3)
+            p90 = round(sorted(abs(t) for t in ec)[int(0.9 * (len(ec) - 1))], 3)
+            combo[str(k)] = {"w_model": round(w, 2), "a": round(a, 3), "n": n, "rmse_model": rm(em), "rmse_spine": rm(es), "rmse_combo": rm(ec), "p90": p90}
+        if combo:
+            new = []
+            for d, l, m in fc:
+                k = str((d - d1).days); c = combo.get(k)
+                if c and d in spine: new.append((d, c["a"] + c["w_model"] * l + (1 - c["w_model"]) * spine[d], c["p90"]))
+                else: new.append((d, l, m))
+            fc = new
+            print("combinaison modèle+SPINE active :", {k: (v["w_model"], v["n"]) for k, v in combo.items()})
+    except FileNotFoundError:
+        pass
+    except Exception as e:
+        print("combinaison impossible :", e)
     # ------------------------------------------------------------------ prévision de débit (LaSalle)
     # Q(J+k) = Q(J) + [q(niveaux SPINE J+k) − q(niveaux observés J)], q = relation pente Frontenac–Varennes
     def q_from(fr_, var_, ice_):
@@ -353,7 +393,7 @@ def main():
         "residual": round(res, 3), "ice": pf.is_ice(J), "model": model_used, "britannia_q": (round(br[J]) if J in br else None), "live": live, "water_temp": water_temp, "discharge": discharge,
         "partial_today": (round(partial["frontenac_zc"], 3) if partial and partial["frontenac_zc"] is not None else None),
         "history": [{"date": d.isoformat(), "obs": round(hist[d]["frontenac_zc"], 3)} for d in days60], "compare": compare, "hourly": hourly, "fine": fine, "spine_hourly": spine_hourly, "spine_adj": spine_adj, "skill": skill, "stat_skill": stat_skill, "q_forecast": q_fc, "qskill": qskill, "discharge_bdf": discharge_bdf, "air": air, "ms_flow": ms_flow, "q_anchor_day": (round(q_las[J]) if J in q_las else None),
-        "forecast": [{"date": d.isoformat(), "level": round(l, 3), "margin": round(m, 3), "spine": (round(spine[d], 3) if d in spine else None)} for d, l, m in fc], "intraday": intraday,
+        "forecast": [{"date": d.isoformat(), "level": round(l, 3), "margin": round(m, 3), "spine": (round(spine[d], 3) if d in spine else None)} for d, l, m in fc], "intraday": intraday, "combo": combo,
     }
     with open(os.path.join(DOCS, "data.json"), "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=1)
