@@ -191,6 +191,28 @@ def main():
                 v = list(errs.values()); stat_skill = {"rmse_J1": round((sum(x * x for x in v) / len(v)) ** 0.5, 3), "n": len(v)}
     except FileNotFoundError:
         pass
+    # ------------------------------------------------------------------ prévision de débit (LaSalle)
+    # Q(J+k) = Q(J) + [q(niveaux SPINE J+k) − q(niveaux observés J)], q = relation pente Frontenac–Varennes
+    def q_from(fr_, var_, ice_):
+        return Q_COEF[0] + Q_COEF[1] * (fr_ - var_) + Q_COEF[2] * fr_ + Q_COEF[3] * ice_
+    q_fc = []
+    try:
+        pf.ST["var"] = ST_VAR
+        var_obs = pf.fetch_iwls_daily("var", J - dt.timedelta(days=1), J)
+        var_sp = pf.fetch_iwls_daily("var", J + dt.timedelta(days=1), J + dt.timedelta(days=7), series="wlf-spine")
+        q_anchor = q_las.get(J) or (discharge["value"] if discharge else None)
+        if q_anchor and J in var_obs:
+            base = q_from(h[J]["frontenac_zc"], var_obs[J], pf.is_ice(J))
+            for d, l, m in fc:
+                if d in spine and d in var_sp:
+                    q_fc.append({"date": d.isoformat(), "q": int(round(q_anchor + q_from(spine[d], var_sp[d], pf.is_ice(d)) - base, -1)), "src": "spine"})
+                else:
+                    q_fc.append({"date": d.isoformat(), "q": int(round(q_anchor, -1)), "src": "persistance"})
+        elif q_anchor:
+            q_fc = [{"date": d.isoformat(), "q": int(round(q_anchor, -1)), "src": "persistance"} for d, l, m in fc]
+        for i, row in enumerate(q_fc, 1): row["p90"] = Q_P90_PERSIST[i]
+    except Exception as e:
+        print("prévision de débit indisponible :", e)
     days60 = [d for d in sorted(hist) if d <= J][-60:]
     data = {
         "generated": dt.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -198,7 +220,7 @@ def main():
         "day_J": J.isoformat(), "obs_J": round(h[J]["frontenac_zc"], 3), "pc_J": round(h[J]["pointeclaire_igld85"], 3), "sa_J": round(h[J]["steanne_igld85"], 3),
         "residual": round(res, 3), "ice": pf.is_ice(J), "live": live, "water_temp": water_temp, "discharge": discharge,
         "partial_today": (round(partial["frontenac_zc"], 3) if partial and partial["frontenac_zc"] is not None else None),
-        "history": [{"date": d.isoformat(), "obs": round(hist[d]["frontenac_zc"], 3)} for d in days60], "hourly": hourly, "spine_hourly": spine_hourly, "spine_adj": spine_adj, "skill": skill, "stat_skill": stat_skill,
+        "history": [{"date": d.isoformat(), "obs": round(hist[d]["frontenac_zc"], 3)} for d in days60], "hourly": hourly, "spine_hourly": spine_hourly, "spine_adj": spine_adj, "skill": skill, "stat_skill": stat_skill, "q_forecast": q_fc, "q_anchor_day": (round(q_las[J]) if J in q_las else None),
         "forecast": [{"date": d.isoformat(), "level": round(l, 3), "margin": round(m, 3), "spine": (round(spine[d], 3) if d in spine else None)} for d, l, m in fc],
     }
     with open(os.path.join(DOCS, "data.json"), "w", encoding="utf-8") as f:
