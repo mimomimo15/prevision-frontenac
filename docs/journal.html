@@ -39,6 +39,9 @@
   .pill { display:inline-block; padding:2px 8px; border-radius:999px; background:var(--head); font-size:.75rem; margin-right:4px; }
   .hidden { display:none; }
   details summary { cursor:pointer; color:var(--navy); font-weight:600; }
+  details.tol { margin-top:10px; } details.tol .row { margin-top:4px; } .small { font-size:.8rem; margin:6px 0 0; }
+  .row > div, .row3 > div, .row4 > div { display:flex; flex-direction:column; justify-content:flex-end; min-width:0; }
+  .row > div > input, .row > div > select, .row3 > div > input, .row3 > div > select, .row4 > div > input, .row4 > div > select { width:100%; }
   @media (max-width:640px) {
     main { padding:8px; } .card { padding:12px; border-radius:10px; margin-bottom:10px; }
     header h1 { font-size:1rem; }
@@ -84,8 +87,9 @@
     <div><label>Niveau du jour (m)</label><input id="vNiveau" type="number" step="0.01"></div>
     <div><label>Vague / spot (vide = toutes)</label><select id="vSpot"><option value="">Toutes</option></select></div>
   </div>
-  <details><summary>Tolérances</summary>
-    <div class="row"><div><label>Débit ± (m³/s)</label><input id="vTolQ" type="number" value="150"></div><div><label>Niveau ± (m) — vide = ignorer le niveau</label><input id="vTolN" type="number" step="0.01" value="0.05"></div></div>
+  <details class="tol"><summary>Tolérances</summary>
+    <div class="row"><div><label>Débit ± (m³/s)</label><input id="vTolQ" type="number" step="10" value="150"></div><div><label>Niveau ± (m)</label><input id="vTolN" type="number" step="0.01" value="0.05"></div></div>
+    <p class="muted small">Une session compte comme « semblable » si son débit et son niveau sont dans ces marges. Laisse « Niveau ± » vide pour comparer seulement le débit.</p>
   </details>
   <div class="actions"><button class="sec" id="btnLive">Reprendre les conditions en direct</button></div>
   <div id="verdict" class="verdict">Entre le débit du jour</div>
