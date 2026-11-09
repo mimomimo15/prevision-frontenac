@@ -72,12 +72,29 @@ def main():
         if j: live = {"time": j[-1]["eventDate"], "value": j[-1]["value"]}
     except Exception as e:
         print("niveau en direct indisponible :", e)
+    # température de l'eau (capteur wt1 de la station) et débit à LaSalle (ECCC temps réel), dernière valeur
+    water_temp = None; discharge = None
+    try:
+        import requests
+        t1 = dt.datetime.utcnow(); t0 = t1 - dt.timedelta(hours=12)
+        r = requests.get(f"{pf.API}/{pf.ST['fr']}/data", timeout=30, params={"time-series-code": "wt1", "from": t0.strftime("%Y-%m-%dT%H:%M:%SZ"), "to": t1.strftime("%Y-%m-%dT%H:%M:%SZ"), "resolution": "FIFTEEN_MINUTES"})
+        j = r.json()
+        if j: water_temp = {"time": j[-1]["eventDate"], "value": round(j[-1]["value"], 1)}
+    except Exception as e:
+        print("température de l'eau indisponible :", e)
+    try:
+        import requests
+        r = requests.get(pf.ECCC_RT, timeout=30, params={"STATION_NUMBER": "02OA016", "f": "json", "limit": 12, "sortby": "-DATETIME", "properties": "DATETIME,DISCHARGE"})
+        feats = [f["properties"] for f in r.json()["features"] if f["properties"].get("DISCHARGE") is not None]
+        if feats: discharge = {"time": feats[0]["DATETIME"], "value": round(feats[0]["DISCHARGE"])}
+    except Exception as e:
+        print("débit LaSalle indisponible :", e)
     days60 = [d for d in sorted(hist) if d <= J][-60:]
     data = {
         "generated": dt.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
         "station": "Montréal, rue Frontenac (SHC 15540)", "datum_note": "mètres au-dessus du zéro des cartes (IGLD85 = ZC + 5,35 m)",
         "day_J": J.isoformat(), "obs_J": round(h[J]["frontenac_zc"], 3), "pc_J": round(h[J]["pointeclaire_igld85"], 3), "sa_J": round(h[J]["steanne_igld85"], 3),
-        "residual": round(res, 3), "ice": pf.is_ice(J), "live": live,
+        "residual": round(res, 3), "ice": pf.is_ice(J), "live": live, "water_temp": water_temp, "discharge": discharge,
         "partial_today": (round(partial["frontenac_zc"], 3) if partial and partial["frontenac_zc"] is not None else None),
         "history": [{"date": d.isoformat(), "obs": round(hist[d]["frontenac_zc"], 3)} for d in days60],
         "forecast": [{"date": d.isoformat(), "level": round(l, 3), "margin": round(m, 3), "spine": (round(spine[d], 3) if d in spine else None)} for d, l, m in fc],

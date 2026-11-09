@@ -6,6 +6,9 @@ on:
     - cron: "40 11 * * *"
     - cron: "40 17 * * *"
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["build_site.py", "prevision_frontenac.py", "docs/index.html", ".github/workflows/update.yml"]
 
 permissions:
   contents: write
