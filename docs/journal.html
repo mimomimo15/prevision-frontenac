@@ -11,7 +11,8 @@
   @media (prefers-color-scheme: dark) { :root { --navy:#9ab4e8; --red:#ff6b6b; --bg:#121418; --card:#1c1f26; --text:#e8e8e8; --muted:#a0a6b3; --head:#262b36; --line:#2c3140; --warnbg:#3a3010; --okbg:#1f3a22; --input:#13161c; --border:#3a4152; } header { background:#0e1a33; } }
   * { box-sizing:border-box; }
   body { margin:0; font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; background:var(--bg); color:var(--text); }
-  header { background:var(--navy); color:#fff; padding:14px 16px; display:flex; justify-content:space-between; align-items:center; gap:10px; }
+  header { background:var(--navy); color:#fff; padding:14px 16px; }
+  .hwrap { max-width:900px; margin:0 auto; display:flex; justify-content:space-between; align-items:center; gap:10px; }
   header h1 { margin:0; font-size:1.1rem; font-weight:600; } header a.back { display:inline-block; background:#fff; color:var(--navy); font-weight:700; font-size:1rem; padding:11px 18px; border-radius:10px; text-decoration:none; box-shadow:0 2px 6px rgba(0,0,0,.2); white-space:nowrap; } header a.back:hover { background:#e9eef7; }
   main { max-width:900px; margin:0 auto; padding:12px; }
   .card { background:var(--card); border-radius:12px; padding:14px 16px; box-shadow:0 1px 3px rgba(0,0,0,.08); margin-bottom:12px; }
@@ -63,7 +64,7 @@
 </style>
 </head>
 <body>
-<header><h1>Journal de vague <span class="muted" style="color:#fff;opacity:.8;font-weight:400">· privé</span></h1><a class="back" href="./">🌊 Prévisions</a></header>
+<header><div class="hwrap"><h1>Journal de vague <span class="muted" style="color:#fff;opacity:.8;font-weight:400">· privé</span></h1><a class="back" href="./">🌊 Prévisions</a></div></header>
 <main>
 
 <div id="setup" class="card">
