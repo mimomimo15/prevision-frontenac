@@ -61,6 +61,7 @@
     <div class="card"><div class="label">Débit Mille Îles – Bois-des-Filion</div><div class="value navy" id="dbdf">–</div><div class="sub" id="dbdftime"></div></div>
     <div class="card"><div class="label">Wetsuit suggérée</div><div class="value" id="wetsuit" style="font-size:1.35rem">–</div><div class="sub" id="wetsuitsub"></div></div>
   </div>
+  <div class="chart-wrap"><div class="ctitle">Niveau des 24 dernières heures, au pas de 5 minutes <span id="finesrc" class="sub" style="font-weight:400"></span></div><canvas id="chartday"></canvas></div>
   <div class="chart-wrap"><div class="ctitle">Prochaines 48 h, heure par heure – prévision hydrodynamique SPINE (SHC) et 24 dernières heures observées</div><canvas id="chart48"></canvas></div>
   <div class="chart-wrap"><div class="ctitle">7 prochains jours (moyennes journalières) – modèle statistique et SPINE</div><canvas id="chart"></canvas></div>
   <table>
@@ -124,6 +125,38 @@ fetch('data.json?t=' + Date.now()).then(r => r.json()).then(d => {
   const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
   const C_OBS = css('--obs'), C_RED = css('--red'), C_SPINE = css('--spine'), C_GRID = css('--grid'), C_GRID0 = css('--grid0'), C_TXT = css('--text');
   Chart.defaults.color = C_TXT; Chart.defaults.borderColor = C_GRID;
+  // Graphique « aujourd'hui » : 24 h au pas de 5 min. Essai en direct auprès de l'API du SHC (si le navigateur l'autorise), sinon copie de la dernière mise à jour.
+  const IWLS = 'https://api-iwls.dfo-mpo.gc.ca/api/v1/stations/5cebf1e03d0f4a073c4bbdee/data';
+  const iso = x => x.toISOString().slice(0, 19) + 'Z';
+  const drawDay = (pts, src) => {
+    document.getElementById('finesrc').textContent = src;
+    new Chart(document.getElementById('chartday'), {
+      type: 'line',
+      data: { datasets: [{ label: 'Niveau observé (5 min)', data: pts, borderColor: C_OBS, backgroundColor: C_OBS, pointRadius: 0, borderWidth: 2, tension: 0.2 }] },
+      options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'nearest', intersect: false }, parsing: false,
+        scales: { x: { type: 'time', time: { unit: 'hour', stepSize: 2 }, ticks: { callback: v => new Date(v).toLocaleTimeString('fr-CA', { hour: '2-digit', minute: '2-digit' }), maxRotation: 0 }, grid: { color: C_GRID } },
+                  y: { title: { display: true, text: 'm (zéro des cartes)' } } },
+        plugins: { legend: { display: false },
+          tooltip: { callbacks: { title: items => new Date(items[0].parsed.x).toLocaleString('fr-CA', { weekday: 'short', hour: '2-digit', minute: '2-digit' }), label: c => c.parsed.y.toFixed(3) + ' m' } } } }
+    });
+  };
+  (async () => {
+    const snap = (d.fine || []).map(p => ({ x: new Date(p.t).getTime(), y: p.v }));
+    try {
+      const t1 = new Date(), t0 = new Date(t1 - 24 * 3600e3);
+      const ctrl = new AbortController(); setTimeout(() => ctrl.abort(), 6000);
+      const r = await fetch(`${IWLS}?time-series-code=wlo&from=${iso(t0)}&to=${iso(t1)}&resolution=FIVE_MINUTES`, { signal: ctrl.signal });
+      const j = await r.json();
+      const live = j.map(p => ({ x: new Date(p.eventDate).getTime(), y: p.value }));
+      if (live.length > 10) {
+        drawDay(live, '· en direct (SHC)');
+        const last = live[live.length - 1];
+        document.getElementById('live').textContent = fmt(last.y); document.getElementById('livetime').textContent = 'lecture du ' + new Date(last.x).toLocaleString('fr-CA', { dateStyle: 'short', timeStyle: 'short' }) + ' · en direct';
+        return;
+      }
+    } catch (e) { /* navigateur sans accès direct : on garde la copie */ }
+    drawDay(snap, '· dernière mise à jour ' + new Date(d.generated).toLocaleTimeString('fr-CA', { hour: '2-digit', minute: '2-digit' }));
+  })();
   // Graphique 48 h : 24 dernières heures observées + SPINE horaire
   const nowMs = Date.now();
   const obs24 = (d.hourly || []).map(p => ({ x: new Date(p.t).getTime(), y: p.v })).filter(p => p.x >= nowMs - 24 * 3600e3);
