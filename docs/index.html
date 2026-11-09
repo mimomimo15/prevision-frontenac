@@ -58,6 +58,7 @@
     <div class="card"><div class="label">Prévision demain (J+1)</div><div class="value red" id="fc1">–</div><div class="sub" id="fc1m"></div></div>
     <div class="card"><div class="label">Tendance sur 7 jours</div><div class="value" id="trend">–</div><div class="sub" id="trendsub"></div></div>
     <div class="card"><div class="label">Dernier jour complet (J)</div><div class="value navy" id="obsJ">–</div><div class="sub" id="dayJ"></div></div>
+    <div class="card"><div class="label">Débit Mille Îles – Bois-des-Filion</div><div class="value navy" id="dbdf">–</div><div class="sub" id="dbdftime"></div></div>
   </div>
   <div class="chart-wrap"><div class="ctitle">Prochaines 48 h, heure par heure – prévision hydrodynamique SPINE (SHC) et 24 dernières heures observées</div><canvas id="chart48"></canvas></div>
   <div class="chart-wrap"><div class="ctitle">7 prochains jours (moyennes journalières) – modèle statistique et SPINE</div><canvas id="chart"></canvas></div>
@@ -83,6 +84,7 @@ fetch('data.json?t=' + Date.now()).then(r => r.json()).then(d => {
   const ftime = s => new Date(s).toLocaleString('fr-CA', { dateStyle: 'short', timeStyle: 'short' });
   if (d.water_temp) { document.getElementById('wtemp').textContent = d.water_temp.value.toFixed(1).replace('.', ',') + ' °C'; document.getElementById('wtemptime').textContent = (d.water_temp.value * 9 / 5 + 32).toFixed(1).replace('.', ',') + ' °F · capteur de la station · ' + ftime(d.water_temp.time); } else document.getElementById('wtemptime').textContent = 'indisponible';
   if (d.discharge) { document.getElementById('disch').textContent = d.discharge.value.toLocaleString('fr-CA') + ' m³/s'; document.getElementById('dischtime').textContent = 'ECCC 02OA016 · ' + ftime(d.discharge.time); } else document.getElementById('dischtime').textContent = 'indisponible';
+  if (d.discharge_bdf) { document.getElementById('dbdf').textContent = d.discharge_bdf.value.toLocaleString('fr-CA') + ' m³/s'; document.getElementById('dbdftime').textContent = 'ECCC 02OA003 · ' + ftime(d.discharge_bdf.time); } else document.getElementById('dbdftime').textContent = 'indisponible';
   document.getElementById('obsJ').textContent = fmt(d.obs_J); document.getElementById('dayJ').textContent = fdate(d.day_J) + ' · moyenne journalière';
   const f = d.forecast;
   document.getElementById('fc1').textContent = fmt(f[0].level); document.getElementById('fc1m').textContent = '± ' + f[0].margin.toFixed(2) + ' m · ' + fdate(f[0].date);

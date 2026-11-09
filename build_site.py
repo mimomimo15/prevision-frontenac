@@ -85,13 +85,17 @@ def main():
         if j: water_temp = {"time": j[-1]["eventDate"], "value": round(j[-1]["value"], 1)}
     except Exception as e:
         print("température de l'eau indisponible :", e)
-    try:
-        import requests
-        r = requests.get(pf.ECCC_RT, timeout=30, params={"STATION_NUMBER": "02OA016", "f": "json", "limit": 12, "sortby": "-DATETIME", "properties": "DATETIME,DISCHARGE"})
-        feats = [f["properties"] for f in r.json()["features"] if f["properties"].get("DISCHARGE") is not None]
-        if feats: discharge = {"time": feats[0]["DATETIME"], "value": round(feats[0]["DISCHARGE"])}
-    except Exception as e:
-        print("débit LaSalle indisponible :", e)
+    def latest_discharge(station):
+        try:
+            import requests
+            r = requests.get(pf.ECCC_RT, timeout=30, params={"STATION_NUMBER": station, "f": "json", "limit": 12, "sortby": "-DATETIME", "properties": "DATETIME,DISCHARGE"})
+            feats = [f["properties"] for f in r.json()["features"] if f["properties"].get("DISCHARGE") is not None]
+            if feats: return {"time": feats[0]["DATETIME"], "value": round(feats[0]["DISCHARGE"])}
+        except Exception as e:
+            print(f"débit {station} indisponible :", e)
+        return None
+    discharge = latest_discharge("02OA016")                 # Saint-Laurent à LaSalle
+    discharge_bdf = latest_discharge("02OA003")             # Rivière des Mille Îles à Bois-des-Filion
     hourly = []
     try:
         import requests
@@ -223,7 +227,7 @@ def main():
         "day_J": J.isoformat(), "obs_J": round(h[J]["frontenac_zc"], 3), "pc_J": round(h[J]["pointeclaire_igld85"], 3), "sa_J": round(h[J]["steanne_igld85"], 3),
         "residual": round(res, 3), "ice": pf.is_ice(J), "live": live, "water_temp": water_temp, "discharge": discharge,
         "partial_today": (round(partial["frontenac_zc"], 3) if partial and partial["frontenac_zc"] is not None else None),
-        "history": [{"date": d.isoformat(), "obs": round(hist[d]["frontenac_zc"], 3)} for d in days60], "hourly": hourly, "spine_hourly": spine_hourly, "spine_adj": spine_adj, "skill": skill, "stat_skill": stat_skill, "q_forecast": q_fc, "q_anchor_day": (round(q_las[J]) if J in q_las else None),
+        "history": [{"date": d.isoformat(), "obs": round(hist[d]["frontenac_zc"], 3)} for d in days60], "hourly": hourly, "spine_hourly": spine_hourly, "spine_adj": spine_adj, "skill": skill, "stat_skill": stat_skill, "q_forecast": q_fc, "discharge_bdf": discharge_bdf, "q_anchor_day": (round(q_las[J]) if J in q_las else None),
         "forecast": [{"date": d.isoformat(), "level": round(l, 3), "margin": round(m, 3), "spine": (round(spine[d], 3) if d in spine else None)} for d, l, m in fc],
     }
     with open(os.path.join(DOCS, "data.json"), "w", encoding="utf-8") as f:
