@@ -23,7 +23,8 @@
   body { margin:0; font-family:-apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background:var(--bg); color:var(--text); }
   header { background:var(--navy); color:#fff; padding:16px 16px; }
   header h1 { margin:0; font-size:1.2rem; font-weight:600; } header p { margin:4px 0 0; font-size:.85rem; opacity:.85; }
-  .hwrap { max-width:980px; margin:0 auto; display:flex; flex-direction:column; align-items:center; text-align:center; gap:12px; }
+  .hwrap { max-width:980px; margin:0 auto; display:flex; flex-direction:row; justify-content:space-between; align-items:center; text-align:left; gap:14px; }
+  .hwrap > div:first-child, .hwrap > h1 { flex:1; min-width:0; }
   .hbtns { display:flex; gap:8px; }
   .jbtn { display:inline-block; background:#fff; color:var(--navy); font-weight:700; font-size:1rem; padding:11px 18px; border-radius:10px; text-decoration:none; box-shadow:0 2px 6px rgba(0,0,0,.2); white-space:nowrap; } .jbtn:hover { background:#e9eef7; }
   main { max-width:980px; margin:0 auto; padding:16px; }
@@ -46,7 +47,7 @@
   footer { font-size:.76rem; color:var(--muted); text-align:center; padding:8px 16px 20px; line-height:1.5; max-width:980px; margin:0 auto; }
   @media (max-width:640px) {
     header { padding:12px 12px 14px; } header h1 { font-size:1.05rem; } header p { font-size:.78rem; }
-    .hwrap { gap:10px; } .hbtns { display:flex; justify-content:center; gap:8px; width:100%; }
+    .hwrap { flex-direction:column; text-align:center; gap:10px; } .hwrap > div:first-child, .hwrap > h1 { flex:none; } .hbtns { display:flex; justify-content:center; gap:8px; width:100%; }
     .jbtn, header a.back { flex:1; text-align:center; padding:11px 10px; font-size:.95rem; width:auto; }
     #chart { height:260px !important; } #hist { height:180px !important; }
     .stat .v { font-size:1.25rem; } th, td { padding:7px 6px; font-size:.85rem; } th:nth-child(5), td:nth-child(5), th:nth-child(6), td:nth-child(6) { display:none; }

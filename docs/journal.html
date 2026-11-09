@@ -19,7 +19,8 @@
   * { box-sizing:border-box; }
   body { margin:0; font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; background:var(--bg); color:var(--text); }
   header { background:var(--navy); color:#fff; padding:16px 16px; }
-  .hwrap { max-width:980px; margin:0 auto; display:flex; flex-direction:column; align-items:center; text-align:center; gap:12px; }
+  .hwrap { max-width:980px; margin:0 auto; display:flex; flex-direction:row; justify-content:space-between; align-items:center; text-align:left; gap:14px; }
+  .hwrap > div:first-child, .hwrap > h1 { flex:1; min-width:0; }
   header h1 { margin:0; font-size:1.2rem; font-weight:600; } header a.back { display:inline-block; background:#fff; color:var(--navy); font-weight:700; font-size:1rem; padding:11px 18px; border-radius:10px; text-decoration:none; box-shadow:0 2px 6px rgba(0,0,0,.2); white-space:nowrap; } header a.back:hover { background:#e9eef7; }
   main { max-width:980px; margin:0 auto; padding:12px; }
   .card { background:var(--card); border-radius:12px; padding:14px 16px; box-shadow:0 1px 3px rgba(0,0,0,.08); margin-bottom:12px; }
@@ -59,7 +60,7 @@
   .row > div > input, .row > div > select, .row3 > div > input, .row3 > div > select, .row4 > div > input, .row4 > div > select { width:100%; }
   @media (max-width:640px) {
     header { padding:12px 12px 14px; } header h1 { font-size:1.05rem; } header p { font-size:.78rem; }
-    .hwrap { gap:10px; } .hbtns { display:flex; justify-content:center; gap:8px; width:100%; }
+    .hwrap { flex-direction:column; text-align:center; gap:10px; } .hwrap > div:first-child, .hwrap > h1 { flex:none; } .hbtns { display:flex; justify-content:center; gap:8px; width:100%; }
     .jbtn, header a.back { flex:1; text-align:center; padding:11px 10px; font-size:.95rem; width:auto; }
     main { padding:8px; } .card { padding:12px; border-radius:10px; margin-bottom:10px; }
     .row, .row3, .row4 { grid-template-columns:1fr 1fr; gap:8px; } .row3 > div:nth-child(3):last-child { grid-column:1 / -1; }
