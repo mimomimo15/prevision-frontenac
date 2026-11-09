@@ -98,6 +98,12 @@
 </div>
 
 <div class="card">
+  <h2>Ta plage idéale</h2>
+  <div class="row"><div><label>Note minimale d’une « bonne » session</label><input id="pMin" type="number" min="1" max="5" value="4"></div><div><label>Vague / spot (vide = toutes)</label><select id="pSpot"><option value="">Toutes</option></select></div></div>
+  <div id="plage" class="muted" style="margin-top:8px"></div>
+</div>
+
+<div class="card">
   <h2>Nouvelle session</h2>
   <div class="row4">
     <div><label>Date</label><input id="fDate" type="date"></div>
@@ -114,12 +120,6 @@
   <label>Commentaires</label><textarea id="fComment"></textarea>
   <div class="actions"><button id="btnSave">Enregistrer la session</button><button class="sec" id="btnCancel" style="display:none">Annuler la modification</button></div>
   <p id="saveMsg" class="muted"></p>
-</div>
-
-<div class="card">
-  <h2>Ta plage idéale</h2>
-  <div class="row"><div><label>Note minimale d’une « bonne » session</label><input id="pMin" type="number" min="1" max="5" value="4"></div><div><label>Vague / spot (vide = toutes)</label><select id="pSpot"><option value="">Toutes</option></select></div></div>
-  <div id="plage" class="muted" style="margin-top:8px"></div>
 </div>
 
 <div class="card">
