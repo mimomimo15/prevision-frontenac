@@ -58,7 +58,6 @@
     <div class="card"><div class="label">Température de l’air (Montréal)</div><div class="value navy" id="atemp">–</div><div class="sub" id="atempsub"></div></div>
     <div class="card"><div class="label">Wetsuit suggérée</div><div class="value" id="wetsuit" style="font-size:1.35rem">–</div><div class="sub" id="wetsuitsub"></div></div>
     <div class="card"><div class="label">Prévision demain (J+1) · débit <span id="qarrow" title="tendance du débit sur 7 jours"></span></div><div class="value red" id="fc1">–</div><div class="sub" id="fc1m"></div></div>
-    <div class="card"><div class="label">Tendance sur 7 jours</div><div class="value" id="trend">–</div><div class="sub" id="trendsub"></div></div>
     <div class="card"><div class="label">Dernier jour complet (J)</div><div class="value navy" id="obsJ">–</div><div class="sub" id="dayJ"></div></div>
     <div class="card"><div class="label">Débit Mille Îles – Bois-des-Filion</div><div class="value navy" id="dbdf">–</div><div class="sub" id="dbdftime"></div></div>
   </div>
@@ -110,9 +109,6 @@ fetch('data.json?t=' + Date.now()).then(r => r.json()).then(d => {
   document.getElementById('obsJ').textContent = fmt(d.obs_J); document.getElementById('dayJ').textContent = fdate(d.day_J) + ' · moyenne journalière';
   const f = d.forecast;
   document.getElementById('fc1').textContent = fmt(f[0].level); document.getElementById('fc1m').textContent = '± ' + f[0].margin.toFixed(2) + ' m · ' + fdate(f[0].date);
-  const delta = f[6].level - d.obs_J;
-  document.getElementById('trend').textContent = (delta >= 0 ? '+' : '') + (delta * 100).toFixed(0) + ' cm';
-  document.getElementById('trendsub').textContent = 'de J à J+7 (hypothèse : débits amont inchangés)';
   const qf = d.q_forecast || []; const qmap = Object.fromEntries(qf.map(q => [q.date, q]));
   const q0 = d.q_anchor_day;
   const trendQ = q => { if (q == null || q0 == null) return '–'; const dq = q - q0, a = Math.abs(dq);
