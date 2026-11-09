@@ -93,6 +93,8 @@
   <p class="note"><strong>Wetsuit :</strong> suggestion indicative basée sur une grille classique (eau ≥ 22 °C : lycra ; 18–22 : shorty/3-2 ; 14–18 : 3/2 ; 10–14 : 4/3 + bottes ; 6–10 : 5/4 + bottes, gants, cagoule ; < 6 : 6/5 à cagoule), relevée d’un cran si le ressenti de l’air est sous 10 °C ou le vent au-dessus de 25 km/h. Adapte selon ta tolérance au froid et la durée de session.</p>
   <p class="note"><strong>Tendance du débit :</strong> sens de la variation du débit à LaSalle par rapport à aujourd’hui, déduit des niveaux prévus par SPINE à Frontenac et Varennes (la pente entre les deux stations reflète le débit). « Stable » = variation sous ±150 m³/s ; légère 150–400 (≈ 2–5 cm de niveau), marquée 400–800 (≈ 5–10 cm), forte > 800. Un astérisque signale un jour où SPINE manquait.</p>
   <p class="note"><strong>Comment lire :</strong> la marge indique l'écart à l'intérieur duquel 90 % des journées passées sont tombées (validation 2024–2025). Elle s'élargit avec l'horizon parce que les débits futurs des barrages (lac Ontario, Carillon) ne sont pas connus.</p>
+  <div class="chart-wrap" style="margin-top:18px"><div class="ctitle">2 dernières semaines – niveau mesuré vs prévu la veille (J+1) <span id="cmpstat" class="sub" style="font-weight:400"></span></div><canvas id="chartcmp"></canvas></div>
+  <p class="note"><strong>Mesuré vs prévu :</strong> chaque point « prévu » est la prévision pour ce jour émise la veille, avec les seules données connues à ce moment. La courbe SPINE se remplit au fil des jours à partir de l'archive (début 9 novembre 2026). L'écart moyen affiché est la moyenne des écarts absolus modèle / mesure sur la période.</p>
   <p class="note"><strong>SPINE :</strong> chaque prévision (SPINE et modèle statistique) est archivée à chaque mise à jour pour mesurer leur précision au fil des semaines. La colonne SPINE du tableau est la prévision hydrodynamique officielle du Service hydrographique du Canada pour la même station : quand les deux convergent, la confiance est élevée ; quand elles divergent, un changement de débit est probablement prévu en amont.</p>
 </main>
 <footer>
@@ -207,6 +209,29 @@ fetch('data.json?t=' + Date.now()).then(r => r.json()).then(d => {
         y: { title: { display: !MOB, text: 'm (zéro des cartes)' } } },
       plugins: { legend: { position: 'bottom', labels: { boxWidth: MOB ? 10 : 40, padding: MOB ? 8 : 10, font: { size: MOB ? 9 : 12 } } },
         tooltip: { callbacks: { title: items => new Date(items[0].parsed.x).toLocaleString('fr-CA', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }),
+                                label: c => c.dataset.label + ' : ' + c.parsed.y.toFixed(2) + ' m' } } } }
+  });
+  // ---- comparaison mesuré vs prévu (14 jours)
+  const cmp = d.compare || [];
+  const cObs = cmp.filter(p => p.obs != null).map(p => ({ x: noon(p.date), y: p.obs }));
+  const cMod = cmp.filter(p => p.model != null).map(p => ({ x: noon(p.date), y: p.model }));
+  const cSp = cmp.filter(p => p.spine != null).map(p => ({ x: noon(p.date), y: p.spine }));
+  const errs = cmp.filter(p => p.obs != null && p.model != null).map(p => Math.abs(p.obs - p.model));
+  if (errs.length) document.getElementById('cmpstat').textContent = '· écart moyen modèle : ' + (100 * errs.reduce((a, b) => a + b, 0) / errs.length).toFixed(1) + ' cm sur ' + errs.length + ' j';
+  const cmpSets = [
+    { label: 'Mesuré (moyenne journalière)', data: cObs, borderColor: C_OBS, backgroundColor: C_OBS, pointRadius: 4, borderWidth: 2, tension: 0 },
+    { label: 'Prévu la veille (modèle)', data: cMod, borderColor: C_RED, backgroundColor: C_RED, borderDash: [6, 4], pointRadius: 4, pointStyle: 'triangle', borderWidth: 2, tension: 0 }
+  ];
+  if (cSp.length) cmpSets.push({ label: 'Prévu la veille (SPINE)', data: cSp, borderColor: C_SPINE, backgroundColor: C_SPINE, borderDash: [2, 3], pointRadius: 3, borderWidth: 1.5, tension: 0 });
+  new Chart(document.getElementById('chartcmp'), {
+    type: 'line',
+    data: { datasets: cmpSets },
+    options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, parsing: false,
+      scales: {
+        x: { type: 'time', time: { unit: 'day' }, ticks: { callback: v => new Date(v).toLocaleDateString('fr-CA', MOB ? { day: 'numeric', month: 'short' } : fr), maxRotation: 0, autoSkip: true, maxTicksLimit: MOB ? 7 : 15 } },
+        y: { title: { display: !MOB, text: 'm (zéro des cartes)' } } },
+      plugins: { legend: { position: 'bottom', labels: { boxWidth: MOB ? 10 : 40, padding: MOB ? 8 : 10, font: { size: MOB ? 9 : 12 } } },
+        tooltip: { callbacks: { title: items => new Date(items[0].parsed.x).toLocaleDateString('fr-CA', fr),
                                 label: c => c.dataset.label + ' : ' + c.parsed.y.toFixed(2) + ' m' } } } }
   });
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => location.reload());

@@ -298,13 +298,41 @@ def main():
         if st["n"] >= 10:
             qskill[str(k)] = {"n": st["n"], "hit": round(st["ok"] / st["n"], 2), "mae": round(st["abs_err"] / st["n"])}
     days60 = [d for d in sorted(hist) if d <= J][-60:]
+    # ------------------------------------------------------------------ comparaison mesuré / prévu (14 derniers jours)
+    # modèle : prévision J+1 rejouée avec les seules données disponibles la veille (identique à ce qui a été publié) ;
+    # SPINE : prévision J+1 archivée la veille (se remplit au fil des jours)
+    spine_j1 = {}
+    try:
+        with open(os.path.join(DOCS, "spine_archive.csv"), newline="", encoding="utf-8") as f:
+            for r in csv.DictReader(f):
+                td = dt.date.fromisoformat(r["target_date"]); idate = dt.date.fromisoformat(r["issued_utc"][:10])
+                if (td - idate).days == 1: spine_j1[td] = float(r["level_zc"])
+    except FileNotFoundError:
+        pass
+    compare = []
+    for d in days60[-14:]:
+        Jp = d - dt.timedelta(days=1); Jp1 = Jp - dt.timedelta(days=1); Jp2 = Jp - dt.timedelta(days=2); m = None
+        try:
+            if Jp in hist and Jp1 in hist and all(hist[x][k] is not None for x in (Jp, Jp1) for k in ("frontenac_zc", "pointeclaire_igld85", "steanne_igld85")):
+                hp, hp1 = hist[Jp], hist[Jp1]
+                if all(x in br for x in (Jp, Jp1, Jp2)):
+                    fcp = pf.forecast_v2(Jp, hp["frontenac_zc"], hp["pointeclaire_igld85"], hp1["pointeclaire_igld85"], hp["steanne_igld85"], hp1["steanne_igld85"], br[Jp], br[Jp1], br[Jp2])
+                else:
+                    fcp = pf.forecast(Jp, hp["frontenac_zc"], hp["pointeclaire_igld85"], hp1["pointeclaire_igld85"], hp["steanne_igld85"], hp1["steanne_igld85"])[1]
+                m = round(fcp[0][1], 3)
+        except Exception as e:
+            print("rejeu J+1 impossible pour", d, ":", e)
+        compare.append({"date": d.isoformat(), "obs": round(hist[d]["frontenac_zc"], 3) if hist[d]["frontenac_zc"] is not None else None, "model": m, "spine": (round(spine_j1[d], 3) if d in spine_j1 else None)})
+    # prévisions pour demain (modèle et SPINE) pour prolonger la comparaison d'un jour
+    if fc:
+        compare.append({"date": fc[0][0].isoformat(), "obs": None, "model": round(fc[0][1], 3), "spine": (round(spine[fc[0][0]], 3) if fc[0][0] in spine else None)})
     data = {
         "generated": dt.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
         "station": "Montréal, rue Frontenac (SHC 15540)", "datum_note": "mètres au-dessus du zéro des cartes (IGLD85 = ZC + 5,35 m)",
         "day_J": J.isoformat(), "obs_J": round(h[J]["frontenac_zc"], 3), "pc_J": round(h[J]["pointeclaire_igld85"], 3), "sa_J": round(h[J]["steanne_igld85"], 3),
         "residual": round(res, 3), "ice": pf.is_ice(J), "model": model_used, "britannia_q": (round(br[J]) if J in br else None), "live": live, "water_temp": water_temp, "discharge": discharge,
         "partial_today": (round(partial["frontenac_zc"], 3) if partial and partial["frontenac_zc"] is not None else None),
-        "history": [{"date": d.isoformat(), "obs": round(hist[d]["frontenac_zc"], 3)} for d in days60], "hourly": hourly, "fine": fine, "spine_hourly": spine_hourly, "spine_adj": spine_adj, "skill": skill, "stat_skill": stat_skill, "q_forecast": q_fc, "qskill": qskill, "discharge_bdf": discharge_bdf, "air": air, "ms_flow": ms_flow, "q_anchor_day": (round(q_las[J]) if J in q_las else None),
+        "history": [{"date": d.isoformat(), "obs": round(hist[d]["frontenac_zc"], 3)} for d in days60], "compare": compare, "hourly": hourly, "fine": fine, "spine_hourly": spine_hourly, "spine_adj": spine_adj, "skill": skill, "stat_skill": stat_skill, "q_forecast": q_fc, "qskill": qskill, "discharge_bdf": discharge_bdf, "air": air, "ms_flow": ms_flow, "q_anchor_day": (round(q_las[J]) if J in q_las else None),
         "forecast": [{"date": d.isoformat(), "level": round(l, 3), "margin": round(m, 3), "spine": (round(spine[d], 3) if d in spine else None)} for d, l, m in fc],
     }
     with open(os.path.join(DOCS, "data.json"), "w", encoding="utf-8") as f:
