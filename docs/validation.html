@@ -21,7 +21,7 @@
   }
   * { box-sizing:border-box; }
   body { margin:0; font-family:-apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background:var(--bg); color:var(--text); }
-  header { background:var(--navy); color:#fff; padding:14px 16px; }
+  header { background:var(--navy); color:#fff; padding:16px 16px; }
   header h1 { margin:0; font-size:1.2rem; font-weight:600; } header p { margin:4px 0 0; font-size:.85rem; opacity:.85; }
   .hwrap { max-width:980px; margin:0 auto; display:flex; justify-content:space-between; align-items:center; gap:14px; flex-wrap:nowrap; } .hwrap > div:first-child { flex:1; min-width:0; }
   .hbtns { display:flex; gap:8px; }
@@ -45,8 +45,9 @@
   .note { font-size:.85rem; color:var(--muted); line-height:1.5; }
   footer { font-size:.76rem; color:var(--muted); text-align:center; padding:8px 16px 20px; line-height:1.5; max-width:980px; margin:0 auto; }
   @media (max-width:640px) {
-    .hwrap { flex-direction:column; text-align:center; gap:10px; } .hbtns { justify-content:center; }
-    header h1 { font-size:1rem; } .jbtn { padding:9px 12px; font-size:.9rem; }
+    header { padding:12px 12px 14px; } header h1 { font-size:1.05rem; } header p { font-size:.78rem; }
+    .hwrap { flex-direction:column; text-align:center; gap:10px; } .hbtns { display:flex; justify-content:center; gap:8px; width:100%; }
+    .jbtn, header a.back { flex:1; text-align:center; padding:11px 10px; font-size:.95rem; width:auto; }
     #chart { height:260px !important; } #hist { height:180px !important; }
     .stat .v { font-size:1.25rem; } th, td { padding:7px 6px; font-size:.85rem; } th:nth-child(5), td:nth-child(5), th:nth-child(6), td:nth-child(6) { display:none; }
   }
