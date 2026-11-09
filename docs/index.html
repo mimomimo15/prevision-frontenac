@@ -3,12 +3,19 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#1F3864" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e1a33" media="(prefers-color-scheme: dark)">
 <title>Niveau du fleuve à Montréal (rue Frontenac) – prévision 7 jours</title>
 <meta name="description" content="Prévision statistique du niveau d'eau du Saint-Laurent à Montréal (station rue Frontenac) pour les 7 prochains jours, à partir des stations en amont. Données ouvertes du Service hydrographique du Canada et d'ECCC.">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
 <style>
-  :root { --navy:#1F3864; --red:#C00000; --grey:#8a8a8a; --bg:#f6f7fa; --card:#ffffff; --text:#1b1b1b; --muted:#666; }
+  :root { --navy:#1F3864; --red:#C00000; --grey:#8a8a8a; --bg:#f6f7fa; --card:#ffffff; --text:#1b1b1b; --muted:#666; --head:#e9eef7; --line:#eeeeee; --grid:#e5e5e5; --grid0:#bbbbbb; --obs:#1F3864; --spine:#2E75B6; --warnbg:#fff4d6; color-scheme: light dark; }
+  @media (prefers-color-scheme: dark) {
+    :root { --navy:#9ab4e8; --red:#ff6b6b; --bg:#121418; --card:#1c1f26; --text:#e8e8e8; --muted:#a0a6b3; --head:#262b36; --line:#2c3140; --grid:#2c3140; --grid0:#4a5063; --obs:#9ab4e8; --spine:#6fa8ff; --warnbg:#3a3010; }
+    header { background:#0e1a33; }
+  }
   * { box-sizing: border-box; }
   body { margin:0; font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background:var(--bg); color:var(--text); }
   header { background:var(--navy); color:#fff; padding:18px 16px; }
@@ -25,13 +32,13 @@
   canvas { width:100% !important; height:320px !important; }
   .ctitle { font-size:.9rem; font-weight:600; color:var(--navy); margin:2px 4px 8px; }
   table { width:100%; border-collapse:collapse; background:var(--card); border-radius:12px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,.08); font-size:.95rem; }
-  th, td { padding:10px 12px; text-align:right; border-bottom:1px solid #eee; }
+  th, td { padding:10px 12px; text-align:right; border-bottom:1px solid var(--line); }
   th:first-child, td:first-child { text-align:left; }
-  th { background:#e9eef7; color:var(--navy); font-weight:600; font-size:.85rem; }
+  th { background:var(--head); color:var(--navy); font-weight:600; font-size:.85rem; }
   td.lvl { font-weight:700; color:var(--red); }
   .note { font-size:.85rem; color:var(--muted); margin:14px 0; line-height:1.45; }
-  .badge { display:inline-block; padding:2px 8px; border-radius:999px; font-size:.75rem; background:#eef; color:var(--navy); margin-left:6px; }
-  .warn { background:#fff4d6; border-left:4px solid #e0a800; padding:10px 12px; border-radius:8px; font-size:.9rem; margin-bottom:12px; }
+
+  .warn { background:var(--warnbg); border-left:4px solid #e0a800; padding:10px 12px; border-radius:8px; font-size:.9rem; margin-bottom:12px; }
   footer { font-size:.78rem; color:var(--muted); padding:16px; text-align:center; line-height:1.5; }
   a { color:var(--navy); }
 </style>
@@ -82,6 +89,9 @@ fetch('data.json?t=' + Date.now()).then(r => r.json()).then(d => {
   document.getElementById('trendsub').textContent = 'de J à J+7 (hypothèse : débits amont inchangés)';
   document.getElementById('rows').innerHTML = f.map(x => `<tr><td>${fdate(x.date)}</td><td class="lvl">${fmt(x.level)}</td><td>${x.margin.toFixed(2)}</td><td>${fmt(x.level - x.margin)} … ${fmt(x.level + x.margin)}</td><td>${x.spine == null ? '–' : fmt(x.spine)}</td></tr>`).join('');
   document.getElementById('method').innerHTML = `<strong>Méthode :</strong> niveau prévu = modèle amont (lac Saint-Louis à Pointe-Claire ${d.pc_J.toFixed(2)} m, lac des Deux Montagnes à Sainte-Anne-de-Bellevue ${d.sa_J.toFixed(2)} m, IGLD85) + composante aval observée le jour J (${fmt(d.residual)}) qui décroît de 16 % par jour. Régression calibrée sur 2019–2025 (erreur typique à J+1 : 5–6 cm hors glace).`;
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const C_OBS = css('--obs'), C_RED = css('--red'), C_SPINE = css('--spine'), C_GRID = css('--grid'), C_GRID0 = css('--grid0'), C_TXT = css('--text');
+  Chart.defaults.color = C_TXT; Chart.defaults.borderColor = C_GRID;
   // Graphique 48 h : 24 dernières heures observées + SPINE horaire
   const nowMs = Date.now();
   const obs24 = (d.hourly || []).map(p => ({ x: new Date(p.t).getTime(), y: p.v })).filter(p => p.x >= nowMs - 24 * 3600e3);
@@ -90,13 +100,13 @@ fetch('data.json?t=' + Date.now()).then(r => r.json()).then(d => {
   new Chart(document.getElementById('chart48'), {
     type: 'line',
     data: { datasets: [
-      { label: 'Observé (horaire)', data: obs24, borderColor: '#1F3864', backgroundColor: '#1F3864', pointRadius: 0, borderWidth: 2, tension: 0 },
-      { label: 'SPINE horaire (SHC, officiel)', data: sph, borderColor: '#2E75B6', backgroundColor: '#2E75B6', borderDash: [4, 3], pointRadius: 0, borderWidth: 2, tension: 0 },
-      { label: 'Modèle statistique (moyenne du jour)', data: f.slice(0, 2).map(x => ({ x: new Date(x.date + 'T12:00:00').getTime(), y: x.level })), borderColor: '#C00000', backgroundColor: '#C00000', pointRadius: 5, pointStyle: 'rectRot', showLine: false }
+      { label: 'Observé (horaire)', data: obs24, borderColor: C_OBS, backgroundColor: C_OBS, pointRadius: 0, borderWidth: 2, tension: 0 },
+      { label: 'SPINE horaire (SHC, officiel)', data: sph, borderColor: C_SPINE, backgroundColor: C_SPINE, borderDash: [4, 3], pointRadius: 0, borderWidth: 2, tension: 0 },
+      { label: 'Modèle statistique (moyenne du jour)', data: f.slice(0, 2).map(x => ({ x: new Date(x.date + 'T12:00:00').getTime(), y: x.level })), borderColor: C_RED, backgroundColor: C_RED, pointRadius: 5, pointStyle: 'rectRot', showLine: false }
     ] },
     options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'nearest', intersect: false }, parsing: false,
       scales: { x: { type: 'time', time: { unit: 'hour', stepSize: 6 }, ticks: { callback: v => new Date(v).toLocaleString('fr-CA', fr48), maxRotation: 0 },
-                     grid: { color: ctx => (ctx.tick && new Date(ctx.tick.value).getHours() === 0) ? '#bbb' : '#eee' } },
+                     grid: { color: ctx => (ctx.tick && new Date(ctx.tick.value).getHours() === 0) ? C_GRID0 : C_GRID } },
                 y: { title: { display: true, text: 'm (zéro des cartes)' } } },
       plugins: { legend: { position: 'bottom' },
         tooltip: { callbacks: { title: items => new Date(items[0].parsed.x).toLocaleString('fr-CA', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }),
@@ -112,19 +122,20 @@ fetch('data.json?t=' + Date.now()).then(r => r.json()).then(d => {
   new Chart(document.getElementById('chart'), {
     type: 'line',
     data: { datasets: [
-      { label: 'Observé (horaire, 3 derniers jours)', data: hourly, borderColor: '#1F3864', backgroundColor: '#1F3864', pointRadius: 0, borderWidth: 2, tension: 0 },
-      { label: 'Prévision (moyenne journalière)', data: pred, borderColor: '#C00000', backgroundColor: '#C00000', pointRadius: 4, borderWidth: 2, tension: 0 },
-      { label: 'SPINE (SHC, officiel)', data: sp, borderColor: '#2E75B6', backgroundColor: '#2E75B6', borderDash: [2, 3], pointRadius: 3, borderWidth: 1.5, tension: 0 }
+      { label: 'Observé (horaire, 3 derniers jours)', data: hourly, borderColor: C_OBS, backgroundColor: C_OBS, pointRadius: 0, borderWidth: 2, tension: 0 },
+      { label: 'Prévision (moyenne journalière)', data: pred, borderColor: C_RED, backgroundColor: C_RED, pointRadius: 4, borderWidth: 2, tension: 0 },
+      { label: 'SPINE (SHC, officiel)', data: sp, borderColor: C_SPINE, backgroundColor: C_SPINE, borderDash: [2, 3], pointRadius: 3, borderWidth: 1.5, tension: 0 }
     ] },
     options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'nearest', intersect: false }, parsing: false,
       scales: {
         x: { type: 'time', time: { unit: 'day' }, ticks: { callback: v => new Date(v).toLocaleDateString('fr-CA', fr), maxRotation: 0, autoSkip: true },
-             grid: { color: ctx => (ctx.tick && new Date(ctx.tick.value).getHours() === 0) ? '#ddd' : 'transparent' } },
+             grid: { color: ctx => (ctx.tick && new Date(ctx.tick.value).getHours() === 0) ? C_GRID0 : 'transparent' } },
         y: { title: { display: true, text: 'm (zéro des cartes)' } } },
       plugins: { legend: { position: 'bottom' },
         tooltip: { callbacks: { title: items => new Date(items[0].parsed.x).toLocaleString('fr-CA', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }),
                                 label: c => c.dataset.label + ' : ' + c.parsed.y.toFixed(2) + ' m' } } } }
   });
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => location.reload());
 }).catch(e => { document.getElementById('method').textContent = 'Données indisponibles : ' + e; });
 </script>
 </body>
