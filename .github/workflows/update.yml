@@ -2,9 +2,8 @@ name: Mise à jour de la prévision
 
 on:
   schedule:
-    # 06:40 et 12:40 heure de Montréal (UTC-5) ; GitHub peut décaler de quelques minutes
-    - cron: "40 11 * * *"
-    - cron: "40 17 * * *"
+    # toutes les heures (à h+10) ; GitHub peut décaler de quelques minutes
+    - cron: "10 * * * *"
   workflow_dispatch:
   push:
     branches: [main]
@@ -28,6 +27,6 @@ jobs:
         run: |
           git config user.name "robot-prevision"
           git config user.email "robot@users.noreply.github.com"
-          git add docs/data.json docs/history.csv
+          git add docs/data.json docs/history.csv docs/spine_archive.csv docs/forecast_archive.csv
           git diff --cached --quiet || git commit -m "Prévision du $(date -u +'%Y-%m-%d %H:%M UTC')"
           git push

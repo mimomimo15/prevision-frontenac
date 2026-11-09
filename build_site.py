@@ -97,6 +97,23 @@ def main():
         hourly = [{"t": p["eventDate"], "v": round(p["value"], 3)} for p in r.json()]
     except Exception as e:
         print("série horaire indisponible :", e)
+    spine_hourly = []
+    try:
+        import requests
+        t1 = dt.datetime.utcnow(); t2 = t1 + dt.timedelta(hours=49)
+        r = requests.get(f"{pf.API}/{pf.ST['fr']}/data", timeout=40, params={"time-series-code": "wlf-spine", "from": t1.strftime("%Y-%m-%dT%H:%M:%SZ"), "to": t2.strftime("%Y-%m-%dT%H:%M:%SZ"), "resolution": "SIXTY_MINUTES"})
+        spine_hourly = [{"t": p["eventDate"], "v": round(p["value"], 3)} for p in r.json()]
+    except Exception as e:
+        print("SPINE horaire indisponible :", e)
+    # archives (pour évaluer plus tard la précision de SPINE et du modèle) : 7 lignes par exécution chacune
+    issued = dt.datetime.utcnow().strftime("%Y-%m-%dT%H:%MZ")
+    for name, rows in (("spine_archive.csv", [(d.isoformat(), spine[d]) for d in sorted(spine)]),
+                       ("forecast_archive.csv", [(d.isoformat(), l) for d, l, m in fc])):
+        p = os.path.join(DOCS, name); new = not os.path.exists(p)
+        with open(p, "a", newline="", encoding="utf-8") as f:
+            w = csv.writer(f)
+            if new: w.writerow(["issued_utc", "target_date", "level_zc"])
+            for tdate, v in rows: w.writerow([issued, tdate, f"{v:.3f}"])
     days60 = [d for d in sorted(hist) if d <= J][-60:]
     data = {
         "generated": dt.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -104,7 +121,7 @@ def main():
         "day_J": J.isoformat(), "obs_J": round(h[J]["frontenac_zc"], 3), "pc_J": round(h[J]["pointeclaire_igld85"], 3), "sa_J": round(h[J]["steanne_igld85"], 3),
         "residual": round(res, 3), "ice": pf.is_ice(J), "live": live, "water_temp": water_temp, "discharge": discharge,
         "partial_today": (round(partial["frontenac_zc"], 3) if partial and partial["frontenac_zc"] is not None else None),
-        "history": [{"date": d.isoformat(), "obs": round(hist[d]["frontenac_zc"], 3)} for d in days60], "hourly": hourly,
+        "history": [{"date": d.isoformat(), "obs": round(hist[d]["frontenac_zc"], 3)} for d in days60], "hourly": hourly, "spine_hourly": spine_hourly,
         "forecast": [{"date": d.isoformat(), "level": round(l, 3), "margin": round(m, 3), "spine": (round(spine[d], 3) if d in spine else None)} for d, l, m in fc],
     }
     with open(os.path.join(DOCS, "data.json"), "w", encoding="utf-8") as f:

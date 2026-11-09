@@ -22,7 +22,8 @@
   .card .sub { font-size:.85rem; color:var(--muted); }
   .red { color:var(--red); } .navy { color:var(--navy); }
   .chart-wrap { background:var(--card); border-radius:12px; padding:12px; box-shadow:0 1px 3px rgba(0,0,0,.08); margin-bottom:16px; }
-  canvas { width:100% !important; height:340px !important; }
+  canvas { width:100% !important; height:320px !important; }
+  .ctitle { font-size:.9rem; font-weight:600; color:var(--navy); margin:2px 4px 8px; }
   table { width:100%; border-collapse:collapse; background:var(--card); border-radius:12px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,.08); font-size:.95rem; }
   th, td { padding:10px 12px; text-align:right; border-bottom:1px solid #eee; }
   th:first-child, td:first-child { text-align:left; }
@@ -50,13 +51,14 @@
     <div class="card"><div class="label">Tendance sur 7 jours</div><div class="value" id="trend">–</div><div class="sub" id="trendsub"></div></div>
     <div class="card"><div class="label">Dernier jour complet (J)</div><div class="value navy" id="obsJ">–</div><div class="sub" id="dayJ"></div></div>
   </div>
-  <div class="chart-wrap"><canvas id="chart"></canvas></div>
+  <div class="chart-wrap"><div class="ctitle">Prochaines 48 h, heure par heure – prévision hydrodynamique SPINE (SHC) et 24 dernières heures observées</div><canvas id="chart48"></canvas></div>
+  <div class="chart-wrap"><div class="ctitle">7 prochains jours (moyennes journalières) – modèle statistique et SPINE</div><canvas id="chart"></canvas></div>
   <table>
     <thead><tr><th>Jour</th><th>Prévision (m)</th><th>Marge ± (90 %)</th><th>Fourchette</th><th>SPINE (SHC)</th></tr></thead>
     <tbody id="rows"></tbody>
   </table>
   <p class="note" id="method"></p>
-  <p class="note"><strong>Comment lire :</strong> la marge indique l'écart à l'intérieur duquel 90 % des journées passées sont tombées (validation 2024–2025). Elle s'élargit avec l'horizon parce que les débits futurs des barrages (lac Ontario, Carillon) ne sont pas connus. La colonne SPINE est la prévision hydrodynamique officielle du Service hydrographique du Canada pour la même station : quand les deux convergent, la confiance est élevée ; quand elles divergent, un changement de débit est probablement prévu en amont.</p>
+  <p class="note"><strong>Comment lire :</strong> la marge indique l'écart à l'intérieur duquel 90 % des journées passées sont tombées (validation 2024–2025). Elle s'élargit avec l'horizon parce que les débits futurs des barrages (lac Ontario, Carillon) ne sont pas connus. Le graphique horaire à 48 h repose sur SPINE, le modèle hydrodynamique du SHC, seule source qui prédit heure par heure ; chaque prévision (SPINE et modèle statistique) est archivée à chaque mise à jour pour mesurer leur précision au fil des semaines. La colonne SPINE est la prévision hydrodynamique officielle du Service hydrographique du Canada pour la même station : quand les deux convergent, la confiance est élevée ; quand elles divergent, un changement de débit est probablement prévu en amont.</p>
 </main>
 <footer>
   Outil indicatif, non officiel. Données : <a href="https://www.marees.gc.ca" target="_blank" rel="noopener">Service hydrographique du Canada (API IWLS)</a> et <a href="https://eaux.ec.gc.ca" target="_blank" rel="noopener">Environnement et Changement climatique Canada</a>, licence ouverte. Pour la navigation et la sécurité, consultez les prévisions officielles du SHC et <a href="https://vigilance.geo.msp.gouv.qc.ca" target="_blank" rel="noopener">Vigilance Québec</a>.
@@ -80,7 +82,27 @@ fetch('data.json?t=' + Date.now()).then(r => r.json()).then(d => {
   document.getElementById('trendsub').textContent = 'de J à J+7 (hypothèse : débits amont inchangés)';
   document.getElementById('rows').innerHTML = f.map(x => `<tr><td>${fdate(x.date)}</td><td class="lvl">${fmt(x.level)}</td><td>${x.margin.toFixed(2)}</td><td>${fmt(x.level - x.margin)} … ${fmt(x.level + x.margin)}</td><td>${x.spine == null ? '–' : fmt(x.spine)}</td></tr>`).join('');
   document.getElementById('method').innerHTML = `<strong>Méthode :</strong> niveau prévu = modèle amont (lac Saint-Louis à Pointe-Claire ${d.pc_J.toFixed(2)} m, lac des Deux Montagnes à Sainte-Anne-de-Bellevue ${d.sa_J.toFixed(2)} m, IGLD85) + composante aval observée le jour J (${fmt(d.residual)}) qui décroît de 16 % par jour. Régression calibrée sur 2019–2025 (erreur typique à J+1 : 5–6 cm hors glace).`;
-  // Graphique : 3 derniers jours (horaire) + prévision journalière à 7 jours (placée à midi)
+  // Graphique 48 h : 24 dernières heures observées + SPINE horaire
+  const nowMs = Date.now();
+  const obs24 = (d.hourly || []).map(p => ({ x: new Date(p.t).getTime(), y: p.v })).filter(p => p.x >= nowMs - 24 * 3600e3);
+  const sph = (d.spine_hourly || []).map(p => ({ x: new Date(p.t).getTime(), y: p.v }));
+  const fr48 = { weekday: 'short', hour: '2-digit' };
+  new Chart(document.getElementById('chart48'), {
+    type: 'line',
+    data: { datasets: [
+      { label: 'Observé (horaire)', data: obs24, borderColor: '#1F3864', backgroundColor: '#1F3864', pointRadius: 0, borderWidth: 2, tension: 0 },
+      { label: 'SPINE horaire (SHC, officiel)', data: sph, borderColor: '#2E75B6', backgroundColor: '#2E75B6', borderDash: [4, 3], pointRadius: 0, borderWidth: 2, tension: 0 },
+      { label: 'Modèle statistique (moyenne du jour)', data: f.slice(0, 2).map(x => ({ x: new Date(x.date + 'T12:00:00').getTime(), y: x.level })), borderColor: '#C00000', backgroundColor: '#C00000', pointRadius: 5, pointStyle: 'rectRot', showLine: false }
+    ] },
+    options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'nearest', intersect: false }, parsing: false,
+      scales: { x: { type: 'time', time: { unit: 'hour', stepSize: 6 }, ticks: { callback: v => new Date(v).toLocaleString('fr-CA', fr48), maxRotation: 0 },
+                     grid: { color: ctx => (ctx.tick && new Date(ctx.tick.value).getHours() === 0) ? '#bbb' : '#eee' } },
+                y: { title: { display: true, text: 'm (zéro des cartes)' } } },
+      plugins: { legend: { position: 'bottom' },
+        tooltip: { callbacks: { title: items => new Date(items[0].parsed.x).toLocaleString('fr-CA', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }),
+                                label: c => c.dataset.label + ' : ' + c.parsed.y.toFixed(2) + ' m' } } } }
+  });
+  // Graphique 7 jours : 3 derniers jours (horaire) + prévision journalière à 7 jours (placée à midi)
   const noon = s => new Date(s + 'T12:00:00').getTime();
   const hourly = (d.hourly || []).map(p => ({ x: new Date(p.t).getTime(), y: p.v }));
   const lastObs = hourly.length ? hourly[hourly.length - 1] : null;
