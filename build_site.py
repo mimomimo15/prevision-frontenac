@@ -127,6 +127,26 @@ def main():
         spine_hourly = [{"t": p["eventDate"], "v": round(p["value"], 3)} for p in r.json()]
     except Exception as e:
         print("SPINE horaire indisponible :", e)
+    # ---- ajustement intrajournalier : avant 18 h, les heures déjà mesurées aujourd'hui corrigent la prévision
+    # d'aujourd'hui et des jours suivants (coefficients par heure, coefs_intraday.json, validés 2020-2025)
+    intraday = None; fc_raw = list(fc)
+    try:
+        INTRA = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "coefs_intraday.json")))["hours"]
+        today = d1; hnow = now.hour
+        if fc and fc[0][0] == today and 3 <= hnow < 18:
+            vals = [p["v"] for p in hourly if (dt.datetime.strptime(p["t"][:19], "%Y-%m-%dT%H:%M:%S") + pf.TZ).date() == today]
+            if len(vals) >= hnow - 1:
+                part = sum(vals) / len(vals); hb = INTRA[str(min(max(hnow, 3), 17))]
+                cc = hb["ice"] if (pf.is_ice(J) and "ice" in hb) else hb["free"]
+                p1 = fc[0][1]; x = part - p1; new = []
+                t = cc["today"]; new.append((fc[0][0], t["coef"][0] + t["coef"][1] * part + t["coef"][2] * p1, t["p90"]))
+                for k in range(2, 8):
+                    e = cc[f"k{k}"]; new.append((fc[k - 1][0], fc[k - 1][1] + e["coef"][0] + e["coef"][1] * x, e["p90"]))
+                intraday = {"hour": hnow, "n": len(vals), "partial": round(part, 3), "model_today": round(p1, 3), "x": round(x, 3)}
+                fc = new
+                print(f"ajustement intrajournalier à {hnow} h : moyenne partielle {part:+.3f}, modèle {p1:+.3f}, écart {x:+.3f}")
+    except Exception as e:
+        print("ajustement intrajournalier impossible :", e)
     # archives (pour évaluer plus tard la précision de SPINE et du modèle) : 7 lignes par exécution chacune
     issued = dt.datetime.utcnow().strftime("%Y-%m-%dT%H:%MZ")
     for name, rows in (("spine_archive.csv", [(d.isoformat(), spine[d]) for d in sorted(spine)]),
@@ -324,8 +344,8 @@ def main():
             print("rejeu J+1 impossible pour", d, ":", e)
         compare.append({"date": d.isoformat(), "obs": round(hist[d]["frontenac_zc"], 3) if hist[d]["frontenac_zc"] is not None else None, "model": m, "spine": (round(spine_j1[d], 3) if d in spine_j1 else None)})
     # prévisions pour demain (modèle et SPINE) pour prolonger la comparaison d'un jour
-    if fc:
-        compare.append({"date": fc[0][0].isoformat(), "obs": None, "model": round(fc[0][1], 3), "spine": (round(spine[fc[0][0]], 3) if fc[0][0] in spine else None)})
+    if fc_raw:
+        compare.append({"date": fc_raw[0][0].isoformat(), "obs": None, "model": round(fc_raw[0][1], 3), "spine": (round(spine[fc_raw[0][0]], 3) if fc_raw[0][0] in spine else None)})
     data = {
         "generated": dt.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
         "station": "Montréal, rue Frontenac (SHC 15540)", "datum_note": "mètres au-dessus du zéro des cartes (IGLD85 = ZC + 5,35 m)",
@@ -333,7 +353,7 @@ def main():
         "residual": round(res, 3), "ice": pf.is_ice(J), "model": model_used, "britannia_q": (round(br[J]) if J in br else None), "live": live, "water_temp": water_temp, "discharge": discharge,
         "partial_today": (round(partial["frontenac_zc"], 3) if partial and partial["frontenac_zc"] is not None else None),
         "history": [{"date": d.isoformat(), "obs": round(hist[d]["frontenac_zc"], 3)} for d in days60], "compare": compare, "hourly": hourly, "fine": fine, "spine_hourly": spine_hourly, "spine_adj": spine_adj, "skill": skill, "stat_skill": stat_skill, "q_forecast": q_fc, "qskill": qskill, "discharge_bdf": discharge_bdf, "air": air, "ms_flow": ms_flow, "q_anchor_day": (round(q_las[J]) if J in q_las else None),
-        "forecast": [{"date": d.isoformat(), "level": round(l, 3), "margin": round(m, 3), "spine": (round(spine[d], 3) if d in spine else None)} for d, l, m in fc],
+        "forecast": [{"date": d.isoformat(), "level": round(l, 3), "margin": round(m, 3), "spine": (round(spine[d], 3) if d in spine else None)} for d, l, m in fc], "intraday": intraday,
     }
     with open(os.path.join(DOCS, "data.json"), "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=1)

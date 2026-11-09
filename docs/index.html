@@ -103,6 +103,7 @@
   <p class="note" id="method"></p>
   <p class="note"><strong>Wetsuit :</strong> suggestion indicative basée sur une grille classique (eau ≥ 22 °C : lycra ; 18–22 : shorty/3-2 ; 14–18 : 3/2 ; 10–14 : 4/3 + bottes ; 6–10 : 5/4 + bottes, gants, cagoule ; < 6 : 6/5 à cagoule), relevée d’un cran si le ressenti de l’air est sous 10 °C ou le vent au-dessus de 25 km/h. Adapte selon ta tolérance au froid et la durée de session.</p>
   <p class="note"><strong>Tendance du débit :</strong> sens de la variation du débit à LaSalle par rapport à aujourd’hui, déduit des niveaux prévus par SPINE à Frontenac et Varennes (la pente entre les deux stations reflète le débit). « Stable » = variation sous ±150 m³/s ; légère 150–400 (≈ 2–5 cm de niveau), marquée 400–800 (≈ 5–10 cm), forte > 800. Un astérisque signale un jour où SPINE manquait.</p>
+  <p class="note" id="intranote"></p>
   <p class="note"><strong>Comment lire :</strong> la marge indique l'écart à l'intérieur duquel 90 % des journées passées sont tombées (validation 2024–2025). Elle s'élargit avec l'horizon parce que les débits futurs des barrages (lac Ontario, Carillon) ne sont pas connus.</p>
   <p class="note"><strong>Mesuré vs prévu :</strong> chaque point « prévu » est la prévision pour ce jour émise la veille, avec les seules données connues à ce moment. La courbe SPINE se remplit au fil des jours à partir de l'archive (début 9 novembre 2026). L'écart moyen affiché est la moyenne des écarts absolus modèle / mesure sur la période.</p>
   <p class="note"><strong>SPINE :</strong> chaque prévision (SPINE et modèle statistique) est archivée à chaque mise à jour pour mesurer leur précision au fil des semaines. La colonne SPINE du tableau est la prévision hydrodynamique officielle du Service hydrographique du Canada pour la même station : quand les deux convergent, la confiance est élevée ; quand elles divergent, un changement de débit est probablement prévu en amont.</p>
@@ -184,14 +185,19 @@ fetch('data.json?t=' + Date.now()).then(r => r.json()).then(d => {
   } else document.getElementById('wetsuitsub').textContent = 'données manquantes';
   document.getElementById('obsJ').textContent = fmt(d.obs_J); document.getElementById('dayJ').textContent = fdate(d.day_J) + ' · moyenne journalière';
   const f = d.forecast;
-  document.getElementById('fc1').textContent = fmt(f[0].level); document.getElementById('fc1m').textContent = '± ' + f[0].margin.toFixed(2) + ' m · ' + fdate(f[0].date);
+  const todayStr = new Date().toLocaleDateString('fr-CA'), tomorrowStr = new Date(Date.now() + 864e5).toLocaleDateString('fr-CA');
+  const fTom = f.find(x => x.date === tomorrowStr) || f[0];
+  document.getElementById('fc1').textContent = fmt(fTom.level);
+  document.getElementById('fc1m').textContent = '± ' + fTom.margin.toFixed(2) + ' m · ' + fdate(fTom.date) + (d.intraday ? ` · ajustée à ${d.intraday.hour} h avec le niveau mesuré aujourd’hui` : '');
   const qf = d.q_forecast || []; const qmap = Object.fromEntries(qf.map(q => [q.date, q]));
   const q0 = d.q_anchor_day;
   const trendQ = q => { if (q == null || q0 == null) return '–'; const dq = q - q0, a = Math.abs(dq);
     if (a < 150) return '→ stable'; const amp = a < 400 ? 'légère' : a < 800 ? 'marquée' : 'forte';
     return (dq > 0 ? '↗ hausse ' : '↘ baisse ') + amp; };
-  document.getElementById('rows').innerHTML = f.map(x => { const q = qmap[x.date]; return `<tr><td>${fdate(x.date)}</td><td class="lvl">${fmt(x.level)}</td><td>${x.margin.toFixed(2)}</td><td>${fmt(x.level - x.margin)} … ${fmt(x.level + x.margin)}</td><td>${x.spine == null ? '–' : fmt(x.spine)}</td><td>${q ? trendQ(q.q) + (q.src === 'persistance' ? ' *' : '') : '–'}</td></tr>`; }).join('');
+  document.getElementById('rows').innerHTML = f.map(x => { const q = qmap[x.date]; return `<tr><td>${fdate(x.date)}${x.date === todayStr ? ' <span class="sub">(aujourd’hui, estimé)</span>' : ''}</td><td class="lvl">${fmt(x.level)}</td><td>${x.margin.toFixed(2)}</td><td>${fmt(x.level - x.margin)} … ${fmt(x.level + x.margin)}</td><td>${x.spine == null ? '–' : fmt(x.spine)}</td><td>${q ? trendQ(q.q) + (q.src === 'persistance' ? ' *' : '') : '–'}</td></tr>`; }).join('');
   if (qf.length && q0 != null) { const last = qf[qf.length - 1]; const q7 = (d.qskill || {})['7']; document.getElementById('qarrow').textContent = trendQ(last.q).charAt(0) + (q7 ? ' ' + (q7.hit*100).toFixed(0) + ' %' : ''); }
+  if (d.intraday) document.getElementById('intranote').innerHTML = `<strong>Ajustement en cours de journée :</strong> à ${d.intraday.hour} h, la moyenne des ${d.intraday.n} heures déjà mesurées aujourd’hui (${fmt(d.intraday.partial)}) est comparée à ce que le modèle prévoyait pour aujourd’hui (${fmt(d.intraday.model_today)}). L’écart (${(100 * d.intraday.x).toFixed(1).replace('.', ',')} cm) corrige l’estimation d’aujourd’hui et les prévisions des jours suivants avec des coefficients calibrés heure par heure sur 2020–2025 (erreur typique de la prévision de demain : 10,5 cm sans ajustement → 7,7 cm à 10 h, 6,7 cm à 17 h). Après 18 h, la journée devient le jour J et le modèle repart sur des moyennes complètes.`;
+  else document.getElementById('intranote').style.display = 'none';
   const sk = d.skill || {}; const keys = Object.keys(sk);
   let skillTxt = keys.length ? '<strong>Précision mesurée (auto-apprentissage, archives des dernières semaines) :</strong> ' + keys.map(k => `${k} : SPINE ±${(sk[k].rmse_spine*100).toFixed(0)} cm → ajusté ±${(sk[k].rmse_adj*100).toFixed(0)} cm (n=${sk[k].n})`).join(' · ') : '<strong>Auto-apprentissage :</strong> l’archivage des prévisions a commencé ; la correction automatique de SPINE et les statistiques de précision apparaîtront après une dizaine de jours de données.';
   if (d.stat_skill) skillTxt += ` · Modèle statistique à J+1 : ±${(d.stat_skill.rmse_J1*100).toFixed(0)} cm (${d.stat_skill.n} jours).`;
