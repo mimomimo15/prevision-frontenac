@@ -30,11 +30,26 @@
   .warn { background:var(--warnbg); padding:10px 12px; border-radius:8px; font-size:.9rem; }
   table { width:100%; border-collapse:collapse; font-size:.9rem; } th, td { padding:8px 6px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; } th { background:var(--head); color:var(--navy); font-size:.8rem; }
   td.num { text-align:right; white-space:nowrap; }
+  @media (min-width:641px) { td.head .muted { display:none; } }
   .stars { color:#e0a800; letter-spacing:1px; }
   .pill { display:inline-block; padding:2px 8px; border-radius:999px; background:var(--head); font-size:.75rem; margin-right:4px; }
   .hidden { display:none; }
   details summary { cursor:pointer; color:var(--navy); font-weight:600; }
-  @media (max-width:640px) { .row3 { grid-template-columns:1fr 1fr; } th:nth-child(6), td:nth-child(6) { display:none; } }
+  @media (max-width:640px) {
+    main { padding:8px; } .card { padding:12px; border-radius:10px; margin-bottom:10px; }
+    header h1 { font-size:1rem; }
+    .row, .row3 { grid-template-columns:1fr 1fr; gap:8px; } .row3 > div:nth-child(3):last-child { grid-column:1 / -1; }
+    input, select, textarea { font-size:16px; padding:10px; }  /* 16px évite le zoom automatique sur iPhone */
+    button { padding:12px 14px; width:100%; } .actions { flex-direction:column; } .actions > * { width:100%; text-align:center; }
+    .verdict { font-size:1.05rem; }
+    /* tableau des sessions → fiches empilées */
+    table, tbody, tr, td { display:block; width:100%; } thead { display:none; }
+    tr { background:var(--input); border:1px solid var(--line); border-radius:10px; padding:8px 10px; margin-bottom:8px; }
+    td { border:0; padding:3px 0; text-align:left !important; } td:empty { display:none; }
+    td[data-l]::before { content:attr(data-l) " : "; color:var(--muted); font-size:.78rem; }
+    td.head { font-weight:600; } td.head::before { content:none; }
+    td.btns { display:flex; gap:8px; margin-top:6px; } td.btns button { width:auto; flex:1; padding:8px; }
+  }
 </style>
 </head>
 <body>
@@ -199,7 +214,7 @@ function renderList() {
   const who = $('lWho').value, spot = $('lSpot').value;
   const rows = data.sessions.filter(s => (!who || s.qui === who) && (!spot || s.spot === spot)).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   $('count').textContent = rows.length + ' / ' + data.sessions.length;
-  $('rows').innerHTML = rows.map(s => `<tr><td>${s.date || ''}<br><span class="muted">${esc(s.qui || '')}</span></td><td>${esc(s.spot || '')}</td><td class="num">${s.debit ?? ''}</td><td class="num">${s.niveau != null ? s.niveau.toFixed(2) : ''}</td><td><span class="stars">${'★'.repeat(+s.note || 0)}</span></td><td>${esc(s.forme || '')}${s.forme2 ? ' / ' + esc(s.forme2) : ''}</td><td>${esc(s.commentaire || '')}</td><td style="white-space:nowrap"><button class="sec" data-edit="${s.id}" style="padding:4px 8px">✎</button> <button class="danger" data-del="${s.id}" style="padding:4px 8px">✕</button></td></tr>`).join('');
+  $('rows').innerHTML = rows.map(s => `<tr><td class="head">${s.date || ''} <span class="muted">· ${esc(s.spot || '')}${s.qui ? ' · ' + esc(s.qui) : ''}</span></td><td class="num" data-l="Spot">${esc(s.spot || '')}</td><td class="num" data-l="Débit">${s.debit ?? ''}${s.debit != null ? ' m³/s' : ''}</td><td class="num" data-l="Niveau">${s.niveau != null ? s.niveau.toFixed(2) + ' m' : ''}</td><td data-l="Note"><span class="stars">${'★'.repeat(+s.note || 0)}</span></td><td data-l="Forme">${esc(s.forme || '')}${s.forme2 ? ' / ' + esc(s.forme2) : ''}</td><td data-l="Commentaire">${esc(s.commentaire || '')}</td><td class="btns" style="white-space:nowrap"><button class="sec" data-edit="${s.id}" style="padding:4px 8px">✎ Modifier</button> <button class="danger" data-del="${s.id}" style="padding:4px 8px">✕</button></td></tr>`).join('');
 }
 function refresh() { fillSelects(); renderList(); plage(); verify(); }
 function resetForm() { editing = null; $('fDate').value = new Date().toLocaleDateString('fr-CA'); $('fSpot').value = data.sessions.length ? data.sessions[data.sessions.length - 1].spot || '' : ''; $('fNote').value = ''; $('fForme').value = ''; $('fForme2').value = ''; $('fComment').value = ''; $('fWho').value = cfg.who; $('btnSave').textContent = 'Enregistrer la session'; $('btnCancel').style.display = 'none'; applyLive(); }
