@@ -64,6 +64,7 @@
     <thead><tr><th>Jour</th><th>Prévision (m)</th><th>Marge ± (90 %)</th><th>Fourchette</th><th>SPINE (SHC)</th></tr></thead>
     <tbody id="rows"></tbody>
   </table>
+  <p class="note" id="skill"></p>
   <p class="note" id="method"></p>
   <p class="note"><strong>Comment lire :</strong> la marge indique l'écart à l'intérieur duquel 90 % des journées passées sont tombées (validation 2024–2025). Elle s'élargit avec l'horizon parce que les débits futurs des barrages (lac Ontario, Carillon) ne sont pas connus. Le graphique horaire à 48 h repose sur SPINE, le modèle hydrodynamique du SHC, seule source qui prédit heure par heure ; chaque prévision (SPINE et modèle statistique) est archivée à chaque mise à jour pour mesurer leur précision au fil des semaines. La colonne SPINE est la prévision hydrodynamique officielle du Service hydrographique du Canada pour la même station : quand les deux convergent, la confiance est élevée ; quand elles divergent, un changement de débit est probablement prévu en amont.</p>
 </main>
@@ -88,6 +89,10 @@ fetch('data.json?t=' + Date.now()).then(r => r.json()).then(d => {
   document.getElementById('trend').textContent = (delta >= 0 ? '+' : '') + (delta * 100).toFixed(0) + ' cm';
   document.getElementById('trendsub').textContent = 'de J à J+7 (hypothèse : débits amont inchangés)';
   document.getElementById('rows').innerHTML = f.map(x => `<tr><td>${fdate(x.date)}</td><td class="lvl">${fmt(x.level)}</td><td>${x.margin.toFixed(2)}</td><td>${fmt(x.level - x.margin)} … ${fmt(x.level + x.margin)}</td><td>${x.spine == null ? '–' : fmt(x.spine)}</td></tr>`).join('');
+  const sk = d.skill || {}; const keys = Object.keys(sk);
+  let skillTxt = keys.length ? '<strong>Précision mesurée (auto-apprentissage, archives des dernières semaines) :</strong> ' + keys.map(k => `${k} : SPINE ±${(sk[k].rmse_spine*100).toFixed(0)} cm → ajusté ±${(sk[k].rmse_adj*100).toFixed(0)} cm (n=${sk[k].n})`).join(' · ') : '<strong>Auto-apprentissage :</strong> l’archivage des prévisions a commencé ; la correction automatique de SPINE et les statistiques de précision apparaîtront après une dizaine de jours de données.';
+  if (d.stat_skill) skillTxt += ` · Modèle statistique à J+1 : ±${(d.stat_skill.rmse_J1*100).toFixed(0)} cm (${d.stat_skill.n} jours).`;
+  document.getElementById('skill').innerHTML = skillTxt;
   document.getElementById('method').innerHTML = `<strong>Méthode :</strong> niveau prévu = modèle amont (lac Saint-Louis à Pointe-Claire ${d.pc_J.toFixed(2)} m, lac des Deux Montagnes à Sainte-Anne-de-Bellevue ${d.sa_J.toFixed(2)} m, IGLD85) + composante aval observée le jour J (${fmt(d.residual)}) qui décroît de 16 % par jour. Régression calibrée sur 2019–2025 (erreur typique à J+1 : 5–6 cm hors glace).`;
   const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
   const C_OBS = css('--obs'), C_RED = css('--red'), C_SPINE = css('--spine'), C_GRID = css('--grid'), C_GRID0 = css('--grid0'), C_TXT = css('--text');
@@ -102,6 +107,7 @@ fetch('data.json?t=' + Date.now()).then(r => r.json()).then(d => {
     data: { datasets: [
       { label: 'Observé (horaire)', data: obs24, borderColor: C_OBS, backgroundColor: C_OBS, pointRadius: 0, borderWidth: 2, tension: 0 },
       { label: 'SPINE horaire (SHC, officiel)', data: sph, borderColor: C_SPINE, backgroundColor: C_SPINE, borderDash: [4, 3], pointRadius: 0, borderWidth: 2, tension: 0 },
+      { label: 'SPINE ajusté (auto-apprentissage)', data: (d.spine_adj || []).map(p => ({ x: new Date(p.t).getTime(), y: p.v })), borderColor: '#e8871e', backgroundColor: '#e8871e', pointRadius: 0, borderWidth: 2.5, tension: 0, hidden: !(d.spine_adj && d.spine_adj.length) },
       { label: 'Modèle statistique (moyenne du jour)', data: f.slice(0, 2).map(x => ({ x: new Date(x.date + 'T12:00:00').getTime(), y: x.level })), borderColor: C_RED, backgroundColor: C_RED, pointRadius: 5, pointStyle: 'rectRot', showLine: false }
     ] },
     options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'nearest', intersect: false }, parsing: false,

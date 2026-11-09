@@ -114,6 +114,83 @@ def main():
             w = csv.writer(f)
             if new: w.writerow(["issued_utc", "target_date", "level_zc"])
             for tdate, v in rows: w.writerow([issued, tdate, f"{v:.3f}"])
+    # ------------------------------------------------------------------ auto-apprentissage
+    # Archives horaires : observations (120 j) et prévisions SPINE 48 h (90 j), puis correction de SPINE
+    # par horizon : erreur(h) ≈ a(h) + b(h) × erreur_actuelle, estimée sur les archives (≥ 10 jours).
+    OBS_H = os.path.join(DOCS, "obs_hourly.csv"); SP_H = os.path.join(DOCS, "spine_hourly_archive.csv")
+    now_utc = dt.datetime.utcnow().replace(minute=0, second=0, microsecond=0)
+    obs_h = {}
+    if os.path.exists(OBS_H):
+        with open(OBS_H, newline="", encoding="utf-8") as f:
+            for r in csv.DictReader(f): obs_h[r["time_utc"]] = float(r["level"])
+    for p in hourly: obs_h[p["t"][:13] + ":00:00Z"] = p["v"]
+    cutoff_obs = (now_utc - dt.timedelta(days=120)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    obs_h = {k: v for k, v in obs_h.items() if k >= cutoff_obs}
+    with open(OBS_H, "w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f); w.writerow(["time_utc", "level"])
+        for k in sorted(obs_h): w.writerow([k, f"{obs_h[k]:.3f}"])
+    sp_rows = []
+    if os.path.exists(SP_H):
+        with open(SP_H, newline="", encoding="utf-8") as f:
+            sp_rows = [(r["issued_utc"], r["target_utc"], float(r["level"])) for r in csv.DictReader(f)]
+    issued_h = now_utc.strftime("%Y-%m-%dT%H:%M:%SZ")
+    sp_rows += [(issued_h, p["t"][:13] + ":00:00Z", p["v"]) for p in spine_hourly]
+    cutoff_sp = (now_utc - dt.timedelta(days=90)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    sp_rows = [r for r in sp_rows if r[0] >= cutoff_sp]
+    with open(SP_H, "w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f); w.writerow(["issued_utc", "target_utc", "level"])
+        for r in sp_rows: w.writerow([r[0], r[1], f"{r[2]:.3f}"])
+    # erreurs passées par horizon
+    def hours_between(a, b):
+        return int((dt.datetime.strptime(b, "%Y-%m-%dT%H:%M:%SZ") - dt.datetime.strptime(a, "%Y-%m-%dT%H:%M:%SZ")).total_seconds() // 3600)
+    by_issue = {}
+    for iss, tgt, v in sp_rows: by_issue.setdefault(iss, {})[tgt] = v
+    buckets = [(1, 3), (4, 6), (7, 12), (13, 24), (25, 48)]
+    samples = {b: [] for b in buckets}
+    for iss, fc_map in by_issue.items():
+        e0 = None
+        if iss in fc_map and iss in obs_h: e0 = obs_h[iss] - fc_map[iss]
+        for tgt, v in fc_map.items():
+            if tgt not in obs_h or e0 is None: continue
+            lead = hours_between(iss, tgt)
+            for b in buckets:
+                if b[0] <= lead <= b[1]: samples[b].append((e0, obs_h[tgt] - v))
+    def fit(pairs):
+        n = len(pairs); mx = sum(p[0] for p in pairs) / n; my = sum(p[1] for p in pairs) / n
+        sxx = sum((p[0] - mx) ** 2 for p in pairs); sxy = sum((p[0] - mx) * (p[1] - my) for p in pairs)
+        b = sxy / sxx if sxx > 1e-9 else 0.0; a = my - b * mx
+        rmse_raw = (sum(p[1] ** 2 for p in pairs) / n) ** 0.5
+        rmse_adj = (sum((p[1] - a - b * p[0]) ** 2 for p in pairs) / n) ** 0.5
+        return a, b, rmse_raw, rmse_adj, n
+    skill = {}; coef = {}
+    for b in buckets:
+        if len(samples[b]) >= 200:
+            a, bb, r_raw, r_adj, n = fit(samples[b]); coef[b] = (a, bb)
+            skill[f"{b[0]}-{b[1]} h"] = {"rmse_spine": round(r_raw, 3), "rmse_adj": round(r_adj, 3), "n": n}
+    spine_adj = []
+    e0_now = None
+    if spine_hourly and coef:
+        k0 = spine_hourly[0]["t"][:13] + ":00:00Z"
+        if k0 in obs_h: e0_now = obs_h[k0] - spine_hourly[0]["v"]
+        elif live: e0_now = live["value"] - spine_hourly[0]["v"]
+    if e0_now is not None:
+        for p in spine_hourly:
+            lead = hours_between(issued_h, p["t"][:13] + ":00:00Z")
+            c = next((coef[b] for b in buckets if b[0] <= lead <= b[1] and b in coef), None)
+            if c: spine_adj.append({"t": p["t"], "v": round(p["v"] + c[0] + c[1] * e0_now, 3)})
+    # précision du modèle statistique à J+1 d'après son archive
+    stat_skill = None
+    try:
+        with open(os.path.join(DOCS, "forecast_archive.csv"), newline="", encoding="utf-8") as f:
+            errs = {}
+            for r in csv.DictReader(f):
+                td = dt.date.fromisoformat(r["target_date"]); idate = dt.date.fromisoformat(r["issued_utc"][:10])
+                if (td - idate).days == 1 and td in hist and hist[td]["frontenac_zc"] is not None:
+                    errs[idate] = hist[td]["frontenac_zc"] - float(r["level_zc"])   # une par jour d'émission (dernière)
+            if len(errs) >= 10:
+                v = list(errs.values()); stat_skill = {"rmse_J1": round((sum(x * x for x in v) / len(v)) ** 0.5, 3), "n": len(v)}
+    except FileNotFoundError:
+        pass
     days60 = [d for d in sorted(hist) if d <= J][-60:]
     data = {
         "generated": dt.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -121,7 +198,7 @@ def main():
         "day_J": J.isoformat(), "obs_J": round(h[J]["frontenac_zc"], 3), "pc_J": round(h[J]["pointeclaire_igld85"], 3), "sa_J": round(h[J]["steanne_igld85"], 3),
         "residual": round(res, 3), "ice": pf.is_ice(J), "live": live, "water_temp": water_temp, "discharge": discharge,
         "partial_today": (round(partial["frontenac_zc"], 3) if partial and partial["frontenac_zc"] is not None else None),
-        "history": [{"date": d.isoformat(), "obs": round(hist[d]["frontenac_zc"], 3)} for d in days60], "hourly": hourly, "spine_hourly": spine_hourly,
+        "history": [{"date": d.isoformat(), "obs": round(hist[d]["frontenac_zc"], 3)} for d in days60], "hourly": hourly, "spine_hourly": spine_hourly, "spine_adj": spine_adj, "skill": skill, "stat_skill": stat_skill,
         "forecast": [{"date": d.isoformat(), "level": round(l, 3), "margin": round(m, 3), "spine": (round(spine[d], 3) if d in spine else None)} for d, l, m in fc],
     }
     with open(os.path.join(DOCS, "data.json"), "w", encoding="utf-8") as f:
