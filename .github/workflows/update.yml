@@ -1,0 +1,30 @@
+name: Mise à jour de la prévision
+
+on:
+  schedule:
+    # 06:40 et 12:40 heure de Montréal (UTC-5) ; GitHub peut décaler de quelques minutes
+    - cron: "40 11 * * *"
+    - cron: "40 17 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install requests
+      - name: Télécharger les données et calculer la prévision
+        run: python build_site.py
+      - name: Publier
+        run: |
+          git config user.name "robot-prevision"
+          git config user.email "robot@users.noreply.github.com"
+          git add docs/data.json docs/history.csv
+          git diff --cached --quiet || git commit -m "Prévision du $(date -u +'%Y-%m-%d %H:%M UTC')"
+          git push

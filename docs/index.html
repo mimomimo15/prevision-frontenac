@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Niveau du fleuve à Montréal (rue Frontenac) – prévision 7 jours</title>
+<meta name="description" content="Prévision statistique du niveau d'eau du Saint-Laurent à Montréal (station rue Frontenac) pour les 7 prochains jours, à partir des stations en amont. Données ouvertes du Service hydrographique du Canada et d'ECCC.">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root { --navy:#1F3864; --red:#C00000; --grey:#8a8a8a; --bg:#f6f7fa; --card:#ffffff; --text:#1b1b1b; --muted:#666; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background:var(--bg); color:var(--text); }
+  header { background:var(--navy); color:#fff; padding:18px 16px; }
+  header h1 { margin:0; font-size:1.25rem; font-weight:600; }
+  header p { margin:4px 0 0; font-size:.85rem; opacity:.85; }
+  main { max-width: 980px; margin: 0 auto; padding: 16px; }
+  .cards { display:grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap:12px; margin-bottom:16px; }
+  .card { background:var(--card); border-radius:12px; padding:14px 16px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  .card .label { font-size:.8rem; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
+  .card .value { font-size:2rem; font-weight:700; margin:4px 0 0; }
+  .card .sub { font-size:.85rem; color:var(--muted); }
+  .red { color:var(--red); } .navy { color:var(--navy); }
+  .chart-wrap { background:var(--card); border-radius:12px; padding:12px; box-shadow:0 1px 3px rgba(0,0,0,.08); margin-bottom:16px; }
+  canvas { width:100% !important; height:340px !important; }
+  table { width:100%; border-collapse:collapse; background:var(--card); border-radius:12px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,.08); font-size:.95rem; }
+  th, td { padding:10px 12px; text-align:right; border-bottom:1px solid #eee; }
+  th:first-child, td:first-child { text-align:left; }
+  th { background:#e9eef7; color:var(--navy); font-weight:600; font-size:.85rem; }
+  td.lvl { font-weight:700; color:var(--red); }
+  .note { font-size:.85rem; color:var(--muted); margin:14px 0; line-height:1.45; }
+  .badge { display:inline-block; padding:2px 8px; border-radius:999px; font-size:.75rem; background:#eef; color:var(--navy); margin-left:6px; }
+  .warn { background:#fff4d6; border-left:4px solid #e0a800; padding:10px 12px; border-radius:8px; font-size:.9rem; margin-bottom:12px; }
+  footer { font-size:.78rem; color:var(--muted); padding:16px; text-align:center; line-height:1.5; }
+  a { color:var(--navy); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Niveau du fleuve à Montréal – rue Frontenac</h1>
+  <p>Prévision statistique à 7 jours (mètres au-dessus du zéro des cartes, comme marees.gc.ca). <span id="updated"></span></p>
+</header>
+<main>
+  <div id="icewarn" class="warn" style="display:none">Période de glace (décembre–mars) : la prévision est moins fiable (embâcles possibles).</div>
+  <div class="cards">
+    <div class="card"><div class="label">Niveau en direct</div><div class="value navy" id="live">–</div><div class="sub" id="livetime"></div></div>
+    <div class="card"><div class="label">Dernier jour complet (J)</div><div class="value navy" id="obsJ">–</div><div class="sub" id="dayJ"></div></div>
+    <div class="card"><div class="label">Prévision demain (J+1)</div><div class="value red" id="fc1">–</div><div class="sub" id="fc1m"></div></div>
+    <div class="card"><div class="label">Tendance sur 7 jours</div><div class="value" id="trend">–</div><div class="sub" id="trendsub"></div></div>
+  </div>
+  <div class="chart-wrap"><canvas id="chart"></canvas></div>
+  <table>
+    <thead><tr><th>Jour</th><th>Prévision (m)</th><th>Marge ± (90 %)</th><th>Fourchette</th><th>SPINE (SHC)</th></tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+  <p class="note" id="method"></p>
+  <p class="note"><strong>Comment lire :</strong> la marge indique l'écart à l'intérieur duquel 90 % des journées passées sont tombées (validation 2024–2025). Elle s'élargit avec l'horizon parce que les débits futurs des barrages (lac Ontario, Carillon) ne sont pas connus. La colonne SPINE est la prévision hydrodynamique officielle du Service hydrographique du Canada pour la même station : quand les deux convergent, la confiance est élevée ; quand elles divergent, un changement de débit est probablement prévu en amont.</p>
+</main>
+<footer>
+  Outil indicatif, non officiel. Données : <a href="https://www.marees.gc.ca" target="_blank" rel="noopener">Service hydrographique du Canada (API IWLS)</a> et <a href="https://eaux.ec.gc.ca" target="_blank" rel="noopener">Environnement et Changement climatique Canada</a>, licence ouverte. Pour la navigation et la sécurité, consultez les prévisions officielles du SHC et <a href="https://vigilance.geo.msp.gouv.qc.ca" target="_blank" rel="noopener">Vigilance Québec</a>.
+</footer>
+<script>
+const fmt = v => (v == null ? '–' : (v >= 0 ? '+' : '') + v.toFixed(2) + ' m');
+const fdate = s => { const d = new Date(s + 'T12:00:00'); return d.toLocaleDateString('fr-CA', { weekday: 'short', day: 'numeric', month: 'short' }); };
+fetch('data.json?t=' + Date.now()).then(r => r.json()).then(d => {
+  document.getElementById('updated').textContent = 'Mis à jour le ' + new Date(d.generated).toLocaleString('fr-CA', { dateStyle: 'medium', timeStyle: 'short' }) + '.';
+  if (d.ice) document.getElementById('icewarn').style.display = 'block';
+  if (d.live) { document.getElementById('live').textContent = fmt(d.live.value); document.getElementById('livetime').textContent = 'lecture du ' + new Date(d.live.time).toLocaleString('fr-CA', { dateStyle: 'short', timeStyle: 'short' }); }
+  else { document.getElementById('live').textContent = d.partial_today != null ? fmt(d.partial_today) : '–'; document.getElementById('livetime').textContent = d.partial_today != null ? 'moyenne partielle d’aujourd’hui' : 'indisponible'; }
+  document.getElementById('obsJ').textContent = fmt(d.obs_J); document.getElementById('dayJ').textContent = fdate(d.day_J) + ' · moyenne journalière';
+  const f = d.forecast;
+  document.getElementById('fc1').textContent = fmt(f[0].level); document.getElementById('fc1m').textContent = '± ' + f[0].margin.toFixed(2) + ' m · ' + fdate(f[0].date);
+  const delta = f[6].level - d.obs_J;
+  document.getElementById('trend').textContent = (delta >= 0 ? '+' : '') + (delta * 100).toFixed(0) + ' cm';
+  document.getElementById('trendsub').textContent = 'de J à J+7 (hypothèse : débits amont inchangés)';
+  document.getElementById('rows').innerHTML = f.map(x => `<tr><td>${fdate(x.date)}</td><td class="lvl">${fmt(x.level)}</td><td>${x.margin.toFixed(2)}</td><td>${fmt(x.level - x.margin)} … ${fmt(x.level + x.margin)}</td><td>${x.spine == null ? '–' : fmt(x.spine)}</td></tr>`).join('');
+  document.getElementById('method').innerHTML = `<strong>Méthode :</strong> niveau prévu = modèle amont (lac Saint-Louis à Pointe-Claire ${d.pc_J.toFixed(2)} m, lac des Deux Montagnes à Sainte-Anne-de-Bellevue ${d.sa_J.toFixed(2)} m, IGLD85) + composante aval observée le jour J (${fmt(d.residual)}) qui décroît de 16 % par jour. Régression calibrée sur 2019–2025 (erreur typique à J+1 : 5–6 cm hors glace).`;
+  const labels = d.history.map(h => h.date).concat(f.map(x => x.date));
+  const n = d.history.length;
+  const obs = d.history.map(h => h.obs).concat(f.map(() => null));
+  const pred = Array(n - 1).fill(null).concat([d.obs_J]).concat(f.map(x => x.level));
+  const lo = Array(n - 1).fill(null).concat([d.obs_J]).concat(f.map(x => x.level - x.margin));
+  const hi = Array(n - 1).fill(null).concat([d.obs_J]).concat(f.map(x => x.level + x.margin));
+  const sp = Array(n).fill(null).concat(f.map(x => x.spine));
+  new Chart(document.getElementById('chart'), {
+    type: 'line',
+    data: { labels: labels.map(fdate), datasets: [
+      { label: 'Observé (moyenne journalière)', data: obs, borderColor: '#1F3864', backgroundColor: '#1F3864', pointRadius: 0, borderWidth: 2, tension: 0 },
+      { label: 'Prévision', data: pred, borderColor: '#C00000', backgroundColor: '#C00000', pointRadius: 4, borderWidth: 2, tension: 0 },
+      { label: 'Borne haute (90 %)', data: hi, borderColor: 'rgba(138,138,138,.9)', borderDash: [5, 4], pointRadius: 0, borderWidth: 1, fill: '+1', backgroundColor: 'rgba(192,0,0,.08)', tension: 0 },
+      { label: 'Borne basse (90 %)', data: lo, borderColor: 'rgba(138,138,138,.9)', borderDash: [5, 4], pointRadius: 0, borderWidth: 1, tension: 0 },
+      { label: 'SPINE (SHC, officiel)', data: sp, borderColor: '#2E75B6', backgroundColor: '#2E75B6', borderDash: [2, 3], pointRadius: 3, borderWidth: 1.5, tension: 0 }
+    ] },
+    options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, spanGaps: false,
+      scales: { y: { title: { display: true, text: 'm (zéro des cartes)' } }, x: { ticks: { maxTicksLimit: 12 } } },
+      plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { label: c => c.dataset.label + ' : ' + (c.parsed.y == null ? '–' : c.parsed.y.toFixed(2) + ' m') } } } }
+  });
+}).catch(e => { document.getElementById('method').textContent = 'Données indisponibles : ' + e; });
+</script>
+</body>
+</html>
