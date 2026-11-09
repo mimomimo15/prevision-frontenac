@@ -45,13 +45,13 @@ def main():
         if d in series["pc"]: r["pointeclaire_igld85"] = series["pc"][d] + pf.DATUM["pc"]
         if d in series["sa"]: r["steanne_igld85"] = series["sa"][d] + pf.DATUM["sa"]
         if d in q_las: r["lasalle_q"] = q_las[d]
-    # jour J = dernier jour COMPLET (≥ 12 valeurs horaires = déjà filtré) avec toutes les données
-    complete = [d for d in sorted(hist) if d < d1 and all(hist[d][k] is not None for k in FIELDS[1:4])]
-    # garder le jour courant (partiel) hors historique officiel si trop tôt
-    if d1 in hist and now.hour < 23:
+    # jour J = dernier jour avec toutes les données ; la journée en cours compte à partir de 18 h
+    # (≥ 18 lectures horaires) et sera remplacée par la moyenne complète à la prochaine exécution
+    if d1 in hist and now.hour < 18:
         partial = hist.pop(d1)
     else:
         partial = None
+    complete = [d for d in sorted(hist) if all(hist[d][k] is not None for k in FIELDS[1:4])]
     save_hist(hist)
     J = complete[-1]; J1 = J - dt.timedelta(days=1)
     if J1 not in hist: sys.exit("Données de J-1 manquantes")
