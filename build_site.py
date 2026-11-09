@@ -89,6 +89,14 @@ def main():
         if feats: discharge = {"time": feats[0]["DATETIME"], "value": round(feats[0]["DISCHARGE"])}
     except Exception as e:
         print("débit LaSalle indisponible :", e)
+    hourly = []
+    try:
+        import requests
+        t1 = dt.datetime.utcnow(); t0 = t1 - dt.timedelta(hours=72)
+        r = requests.get(f"{pf.API}/{pf.ST['fr']}/data", timeout=40, params={"time-series-code": "wlo", "from": t0.strftime("%Y-%m-%dT%H:%M:%SZ"), "to": t1.strftime("%Y-%m-%dT%H:%M:%SZ"), "resolution": "SIXTY_MINUTES"})
+        hourly = [{"t": p["eventDate"], "v": round(p["value"], 3)} for p in r.json()]
+    except Exception as e:
+        print("série horaire indisponible :", e)
     days60 = [d for d in sorted(hist) if d <= J][-60:]
     data = {
         "generated": dt.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -96,7 +104,7 @@ def main():
         "day_J": J.isoformat(), "obs_J": round(h[J]["frontenac_zc"], 3), "pc_J": round(h[J]["pointeclaire_igld85"], 3), "sa_J": round(h[J]["steanne_igld85"], 3),
         "residual": round(res, 3), "ice": pf.is_ice(J), "live": live, "water_temp": water_temp, "discharge": discharge,
         "partial_today": (round(partial["frontenac_zc"], 3) if partial and partial["frontenac_zc"] is not None else None),
-        "history": [{"date": d.isoformat(), "obs": round(hist[d]["frontenac_zc"], 3)} for d in days60],
+        "history": [{"date": d.isoformat(), "obs": round(hist[d]["frontenac_zc"], 3)} for d in days60], "hourly": hourly,
         "forecast": [{"date": d.isoformat(), "level": round(l, 3), "margin": round(m, 3), "spine": (round(spine[d], 3) if d in spine else None)} for d, l, m in fc],
     }
     with open(os.path.join(DOCS, "data.json"), "w", encoding="utf-8") as f:

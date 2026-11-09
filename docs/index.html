@@ -6,6 +6,7 @@
 <title>Niveau du fleuve à Montréal (rue Frontenac) – prévision 7 jours</title>
 <meta name="description" content="Prévision statistique du niveau d'eau du Saint-Laurent à Montréal (station rue Frontenac) pour les 7 prochains jours, à partir des stations en amont. Données ouvertes du Service hydrographique du Canada et d'ECCC.">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
 <style>
   :root { --navy:#1F3864; --red:#C00000; --grey:#8a8a8a; --bg:#f6f7fa; --card:#ffffff; --text:#1b1b1b; --muted:#666; }
   * { box-sizing: border-box; }
@@ -43,11 +44,11 @@
   <div id="icewarn" class="warn" style="display:none">Période de glace (décembre–mars) : la prévision est moins fiable (embâcles possibles).</div>
   <div class="cards">
     <div class="card"><div class="label">Niveau en direct</div><div class="value navy" id="live">–</div><div class="sub" id="livetime"></div></div>
-    <div class="card"><div class="label">Dernier jour complet (J)</div><div class="value navy" id="obsJ">–</div><div class="sub" id="dayJ"></div></div>
+    <div class="card"><div class="label">Débit en direct (LaSalle)</div><div class="value navy" id="disch">–</div><div class="sub" id="dischtime"></div></div>
+    <div class="card"><div class="label">Température de l’eau</div><div class="value navy" id="wtemp">–</div><div class="sub" id="wtemptime"></div></div>
     <div class="card"><div class="label">Prévision demain (J+1)</div><div class="value red" id="fc1">–</div><div class="sub" id="fc1m"></div></div>
     <div class="card"><div class="label">Tendance sur 7 jours</div><div class="value" id="trend">–</div><div class="sub" id="trendsub"></div></div>
-    <div class="card"><div class="label">Température de l’eau</div><div class="value navy" id="wtemp">–</div><div class="sub" id="wtemptime"></div></div>
-    <div class="card"><div class="label">Débit du fleuve à LaSalle</div><div class="value navy" id="disch">–</div><div class="sub" id="dischtime"></div></div>
+    <div class="card"><div class="label">Dernier jour complet (J)</div><div class="value navy" id="obsJ">–</div><div class="sub" id="dayJ"></div></div>
   </div>
   <div class="chart-wrap"><canvas id="chart"></canvas></div>
   <table>
@@ -79,21 +80,28 @@ fetch('data.json?t=' + Date.now()).then(r => r.json()).then(d => {
   document.getElementById('trendsub').textContent = 'de J à J+7 (hypothèse : débits amont inchangés)';
   document.getElementById('rows').innerHTML = f.map(x => `<tr><td>${fdate(x.date)}</td><td class="lvl">${fmt(x.level)}</td><td>${x.margin.toFixed(2)}</td><td>${fmt(x.level - x.margin)} … ${fmt(x.level + x.margin)}</td><td>${x.spine == null ? '–' : fmt(x.spine)}</td></tr>`).join('');
   document.getElementById('method').innerHTML = `<strong>Méthode :</strong> niveau prévu = modèle amont (lac Saint-Louis à Pointe-Claire ${d.pc_J.toFixed(2)} m, lac des Deux Montagnes à Sainte-Anne-de-Bellevue ${d.sa_J.toFixed(2)} m, IGLD85) + composante aval observée le jour J (${fmt(d.residual)}) qui décroît de 16 % par jour. Régression calibrée sur 2019–2025 (erreur typique à J+1 : 5–6 cm hors glace).`;
-  const labels = d.history.map(h => h.date).concat(f.map(x => x.date));
-  const n = d.history.length;
-  const obs = d.history.map(h => h.obs).concat(f.map(() => null));
-  const pred = Array(n - 1).fill(null).concat([d.obs_J]).concat(f.map(x => x.level));
-  const sp = Array(n).fill(null).concat(f.map(x => x.spine));
+  // Graphique : 3 derniers jours (horaire) + prévision journalière à 7 jours (placée à midi)
+  const noon = s => new Date(s + 'T12:00:00').getTime();
+  const hourly = (d.hourly || []).map(p => ({ x: new Date(p.t).getTime(), y: p.v }));
+  const lastObs = hourly.length ? hourly[hourly.length - 1] : null;
+  const pred = (lastObs ? [lastObs] : []).concat(f.map(x => ({ x: noon(x.date), y: x.level })));
+  const sp = f.filter(x => x.spine != null).map(x => ({ x: noon(x.date), y: x.spine }));
+  const fr = { weekday: 'short', day: 'numeric', month: 'short' };
   new Chart(document.getElementById('chart'), {
     type: 'line',
-    data: { labels: labels.map(fdate), datasets: [
-      { label: 'Observé (moyenne journalière)', data: obs, borderColor: '#1F3864', backgroundColor: '#1F3864', pointRadius: 0, borderWidth: 2, tension: 0 },
-      { label: 'Prévision', data: pred, borderColor: '#C00000', backgroundColor: '#C00000', pointRadius: 4, borderWidth: 2, tension: 0 },
+    data: { datasets: [
+      { label: 'Observé (horaire, 3 derniers jours)', data: hourly, borderColor: '#1F3864', backgroundColor: '#1F3864', pointRadius: 0, borderWidth: 2, tension: 0 },
+      { label: 'Prévision (moyenne journalière)', data: pred, borderColor: '#C00000', backgroundColor: '#C00000', pointRadius: 4, borderWidth: 2, tension: 0 },
       { label: 'SPINE (SHC, officiel)', data: sp, borderColor: '#2E75B6', backgroundColor: '#2E75B6', borderDash: [2, 3], pointRadius: 3, borderWidth: 1.5, tension: 0 }
     ] },
-    options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, spanGaps: false,
-      scales: { y: { title: { display: true, text: 'm (zéro des cartes)' } }, x: { ticks: { maxTicksLimit: 12 } } },
-      plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { label: c => c.dataset.label + ' : ' + (c.parsed.y == null ? '–' : c.parsed.y.toFixed(2) + ' m') } } } }
+    options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'nearest', intersect: false }, parsing: false,
+      scales: {
+        x: { type: 'time', time: { unit: 'day' }, ticks: { callback: v => new Date(v).toLocaleDateString('fr-CA', fr), maxRotation: 0, autoSkip: true },
+             grid: { color: ctx => (ctx.tick && new Date(ctx.tick.value).getHours() === 0) ? '#ddd' : 'transparent' } },
+        y: { title: { display: true, text: 'm (zéro des cartes)' } } },
+      plugins: { legend: { position: 'bottom' },
+        tooltip: { callbacks: { title: items => new Date(items[0].parsed.x).toLocaleString('fr-CA', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }),
+                                label: c => c.dataset.label + ' : ' + c.parsed.y.toFixed(2) + ' m' } } } }
   });
 }).catch(e => { document.getElementById('method').textContent = 'Données indisponibles : ' + e; });
 </script>
