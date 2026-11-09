@@ -21,6 +21,9 @@
   header { background:var(--navy); color:#fff; padding:18px 16px; }
   header h1 { margin:0; font-size:1.25rem; font-weight:600; }
   header p { margin:4px 0 0; font-size:.85rem; opacity:.85; }
+  .hwrap { max-width:980px; margin:0 auto; display:flex; justify-content:space-between; align-items:center; gap:14px; flex-wrap:wrap; }
+  .jbtn { display:inline-block; background:#fff; color:var(--navy); font-weight:700; font-size:1rem; padding:11px 18px; border-radius:10px; text-decoration:none; box-shadow:0 2px 6px rgba(0,0,0,.2); white-space:nowrap; }
+  .jbtn:hover { background:#e9eef7; }
   main { max-width: 980px; margin: 0 auto; padding: 16px; }
   .cards { display:grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap:12px; margin-bottom:16px; }
   .card { background:var(--card); border-radius:12px; padding:14px 16px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
@@ -43,6 +46,7 @@
   footer { font-size:.78rem; color:var(--muted); padding:16px; text-align:center; line-height:1.5; }
   @media (max-width: 640px) {
     header { padding:14px 12px; } header h1 { font-size:1.05rem; } header p { font-size:.78rem; }
+    .jbtn { width:100%; text-align:center; padding:12px; }
     main { padding:10px; }
     .cards { grid-template-columns: 1fr 1fr; gap:8px; }
     .card { padding:10px 12px; border-radius:10px; } .card .value { font-size:1.35rem; } .card .label { font-size:.68rem; } .card .sub { font-size:.74rem; }
@@ -58,8 +62,13 @@
 </head>
 <body>
 <header>
-  <h1>Niveau du fleuve à Montréal – rue Frontenac <a href="journal.html" style="float:right;font-size:.8rem;font-weight:400;color:#fff;opacity:.85">Journal ›</a></h1>
-  <p>Prévision statistique à 7 jours (mètres au-dessus du zéro des cartes, comme marees.gc.ca). <span id="updated"></span></p>
+  <div class="hwrap">
+    <div>
+      <h1>Niveau du fleuve à Montréal – rue Frontenac</h1>
+      <p>Prévision statistique à 7 jours (mètres au-dessus du zéro des cartes, comme marees.gc.ca). <span id="updated"></span></p>
+    </div>
+    <a class="jbtn" href="journal.html">📓 Mon journal de vague</a>
+  </div>
 </header>
 <main>
   <div id="icewarn" class="warn" style="display:none">Période de glace (décembre–mars) : la prévision est moins fiable (embâcles possibles).</div>
