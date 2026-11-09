@@ -212,7 +212,7 @@ function plage() {
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 function fillSelects() {
   const spots = [...new Set(data.sessions.map(s => s.spot).filter(Boolean))].sort(), whos = [...new Set(data.sessions.map(s => s.qui).filter(Boolean))].sort();
-  for (const id of ['vSpot', 'pSpot', 'lSpot']) { const el = $(id), cur = el.value; el.innerHTML = '<option value="">' + (id === 'lSpot' ? 'Tous' : 'Toutes') + '</option>' + spots.map(s => `<option>${esc(s)}</option>`).join(''); el.value = cur; }
+  for (const id of ['vSpot', 'pSpot', 'lSpot']) { const el = $(id), cur = el.value || (id === 'pSpot' ? LS.get('pspot') : ''); el.innerHTML = '<option value="">' + (id === 'lSpot' ? 'Tous' : 'Toutes') + '</option>' + spots.map(s => `<option>${esc(s)}</option>`).join(''); el.value = cur; }
   $('spotList').innerHTML = spots.map(s => `<option value="${esc(s)}">`).join('');
   const lw = $('lWho'), cw = lw.value; lw.innerHTML = '<option value="">Tous</option>' + whos.map(w => `<option>${esc(w)}</option>`).join(''); lw.value = cw;
   const f1 = $('fForme'), f2 = $('fForme2'), c1 = f1.value, c2 = f2.value;
@@ -244,7 +244,8 @@ $('btnCancel').onclick = () => { resetForm(); $('saveMsg').textContent = ''; };
 $('btnSave').onclick = saveSession;
 $('btnLive').onclick = async () => { await fetchLive(); applyLive(); };
 for (const id of ['vDebit', 'vNiveau', 'vSpot', 'vTolQ', 'vTolN']) $(id).addEventListener('input', verify);
-for (const id of ['pMin', 'pSpot']) $(id).addEventListener('input', plage);
+for (const id of ['pMin', 'pSpot']) $(id).addEventListener('input', () => { LS.set('pmin', $('pMin').value); LS.set('pspot', $('pSpot').value); plage(); });
+if (LS.get('pmin')) $('pMin').value = LS.get('pmin');
 for (const id of ['lWho', 'lSpot']) $(id).addEventListener('change', renderList);
 
 // ---------------- export / import / formes

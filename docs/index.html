@@ -11,9 +11,9 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
 <style>
-  :root { --navy:#1F3864; --red:#C00000; --grey:#8a8a8a; --bg:#f6f7fa; --card:#ffffff; --text:#1b1b1b; --muted:#666; --head:#e9eef7; --line:#eeeeee; --grid:#e5e5e5; --grid0:#bbbbbb; --obs:#1F3864; --spine:#2E75B6; --warnbg:#fff4d6; color-scheme: light dark; }
+  :root { --green:#1a8f3c; --navy:#1F3864; --red:#C00000; --grey:#8a8a8a; --bg:#f6f7fa; --card:#ffffff; --text:#1b1b1b; --muted:#666; --head:#e9eef7; --line:#eeeeee; --grid:#e5e5e5; --grid0:#bbbbbb; --obs:#1F3864; --spine:#2E75B6; --warnbg:#fff4d6; color-scheme: light dark; }
   @media (prefers-color-scheme: dark) {
-    :root { --navy:#9ab4e8; --red:#ff6b6b; --bg:#121418; --card:#1c1f26; --text:#e8e8e8; --muted:#a0a6b3; --head:#262b36; --line:#2c3140; --grid:#2c3140; --grid0:#4a5063; --obs:#9ab4e8; --spine:#6fa8ff; --warnbg:#3a3010; }
+    :root { --green:#5fd37f; --navy:#9ab4e8; --red:#ff6b6b; --bg:#121418; --card:#1c1f26; --text:#e8e8e8; --muted:#a0a6b3; --head:#262b36; --line:#2c3140; --grid:#2c3140; --grid0:#4a5063; --obs:#9ab4e8; --spine:#6fa8ff; --warnbg:#3a3010; }
     header { background:#0e1a33; }
   }
   * { box-sizing: border-box; }
@@ -31,7 +31,7 @@
   #qarrow { font-size:1.1rem; font-weight:700; color:var(--red); text-transform:none; }
   .card .value { font-size:1.7rem; font-weight:700; margin:4px 0 0; }
   .card .sub { font-size:.85rem; color:var(--muted); }
-  .red { color:var(--red); } .navy { color:var(--navy); }
+  .red { color:var(--red); } .navy { color:var(--navy); } .ideal { color:var(--green) !important; } .ideal-tag { color:var(--green); font-weight:600; }
   .chart-wrap { background:var(--card); border-radius:12px; padding:12px; box-shadow:0 1px 3px rgba(0,0,0,.08); margin-bottom:16px; }
   canvas { width:100% !important; height:320px !important; }
   .ctitle { font-size:.9rem; font-weight:600; color:var(--navy); margin:2px 4px 8px; }
@@ -103,14 +103,44 @@
 <script>
 const fmt = v => (v == null ? '–' : (v >= 0 ? '+' : '') + v.toFixed(2) + ' m');
 const fdate = s => { const d = new Date(s + 'T12:00:00'); return d.toLocaleDateString('fr-CA', { weekday: 'short', day: 'numeric', month: 'short' }); };
+// ---- Plage idéale (réservée aux personnes connectées au journal privé : jeton dans ce navigateur)
+let plage = null, liveLevel = null, liveQ = null;
+function markIdeal() {
+  if (!plage) return;
+  const set = (id, subId, v, lo, hi, txt) => {
+    const el = document.getElementById(id), sub = document.getElementById(subId);
+    const old = sub.querySelector('.ideal-tag'); if (old) old.remove();
+    if (v == null || lo == null) { el.classList.remove('ideal'); return; }
+    const ok = v >= lo && v <= hi; el.classList.toggle('ideal', ok);
+    if (ok) { const s = document.createElement('span'); s.className = 'ideal-tag'; s.textContent = ' · ' + txt; sub.appendChild(s); }
+  };
+  set('live', 'livetime', liveLevel, plage.nmin, plage.nmax, 'dans ta plage idéale');
+  set('disch', 'dischtime', liveQ, plage.qmin, plage.qmax, 'dans ta plage idéale');
+}
+(async () => {
+  try {
+    const g = k => { try { return localStorage.getItem('jv_' + k) || ''; } catch (e) { return ''; } };
+    const token = g('token'); if (!token) return;
+    const owner = g('owner') || 'mimomimo15', repo = g('repo') || 'journal-vague', min = parseFloat(g('pmin')) || 4, spot = g('pspot');
+    const r = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/sessions.json`, { headers: { Authorization: 'Bearer ' + token, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' }, cache: 'no-store' });
+    if (!r.ok) return;
+    const j = await r.json(); const data = JSON.parse(decodeURIComponent(escape(atob(j.content.replace(/\n/g, '')))));
+    const good = (data.sessions || []).filter(s => s.note && +s.note >= min && s.debit != null && (!spot || s.spot === spot));
+    if (!good.length) return;
+    const qs = good.map(s => +s.debit), ns = good.filter(s => s.niveau != null).map(s => +s.niveau);
+    plage = { qmin: Math.min(...qs), qmax: Math.max(...qs), nmin: ns.length ? Math.min(...ns) : null, nmax: ns.length ? Math.max(...ns) : null };
+    markIdeal();
+  } catch (e) { /* pas de journal sur cet appareil */ }
+})();
 fetch('data.json?t=' + Date.now()).then(r => r.json()).then(d => {
   document.getElementById('updated').textContent = 'Mis à jour le ' + new Date(d.generated).toLocaleString('fr-CA', { dateStyle: 'medium', timeStyle: 'short' }) + '.';
   if (d.ice) document.getElementById('icewarn').style.display = 'block';
-  if (d.live) { document.getElementById('live').textContent = fmt(d.live.value); document.getElementById('livetime').textContent = 'lecture du ' + new Date(d.live.time).toLocaleString('fr-CA', { dateStyle: 'short', timeStyle: 'short' }); }
-  else { document.getElementById('live').textContent = d.partial_today != null ? fmt(d.partial_today) : '–'; document.getElementById('livetime').textContent = d.partial_today != null ? 'moyenne partielle d’aujourd’hui' : 'indisponible'; }
+  if (d.live) { liveLevel = d.live.value; document.getElementById('live').textContent = fmt(d.live.value); document.getElementById('livetime').textContent = 'lecture du ' + new Date(d.live.time).toLocaleString('fr-CA', { dateStyle: 'short', timeStyle: 'short' }); }
+  else { liveLevel = d.partial_today; document.getElementById('live').textContent = d.partial_today != null ? fmt(d.partial_today) : '–'; document.getElementById('livetime').textContent = d.partial_today != null ? 'moyenne partielle d’aujourd’hui' : 'indisponible'; }
   const ftime = s => new Date(s).toLocaleString('fr-CA', { dateStyle: 'short', timeStyle: 'short' });
   if (d.water_temp) { document.getElementById('wtemp').textContent = d.water_temp.value.toFixed(1).replace('.', ',') + ' °C'; document.getElementById('wtemptime').textContent = (d.water_temp.value * 9 / 5 + 32).toFixed(1).replace('.', ',') + ' °F · capteur de la station · ' + ftime(d.water_temp.time); } else document.getElementById('wtemptime').textContent = 'indisponible';
-  if (d.discharge) { document.getElementById('disch').textContent = d.discharge.value.toLocaleString('fr-CA') + ' m³/s'; document.getElementById('dischtime').textContent = 'ECCC 02OA016 · ' + ftime(d.discharge.time); } else document.getElementById('dischtime').textContent = 'indisponible';
+  if (d.discharge) { liveQ = d.discharge.value; document.getElementById('disch').textContent = d.discharge.value.toLocaleString('fr-CA') + ' m³/s'; document.getElementById('dischtime').textContent = 'ECCC 02OA016 · ' + ftime(d.discharge.time); } else document.getElementById('dischtime').textContent = 'indisponible';
+  markIdeal();
   if (d.discharge_bdf) { document.getElementById('dbdf').textContent = d.discharge_bdf.value.toLocaleString('fr-CA') + ' m³/s'; document.getElementById('dbdftime').textContent = 'ECCC 02OA003 · ' + ftime(d.discharge_bdf.time); } else document.getElementById('dbdftime').textContent = 'indisponible';
   const a = d.air;
   if (a) { document.getElementById('atemp').textContent = a.temp.toFixed(1).replace('.', ',') + ' °C'; document.getElementById('atempsub').textContent = 'ressenti ' + a.feels.toFixed(0) + ' °C · ' + ftime(a.time); } else document.getElementById('atempsub').textContent = 'indisponible';
@@ -182,7 +212,7 @@ fetch('data.json?t=' + Date.now()).then(r => r.json()).then(d => {
       if (live.length > 10) {
         drawDay(live, '· en direct (SHC)');
         const last = live[live.length - 1];
-        document.getElementById('live').textContent = fmt(last.y); document.getElementById('livetime').textContent = 'lecture du ' + new Date(last.x).toLocaleString('fr-CA', { dateStyle: 'short', timeStyle: 'short' }) + ' · en direct';
+        liveLevel = last.y; document.getElementById('live').textContent = fmt(last.y); document.getElementById('livetime').textContent = 'lecture du ' + new Date(last.x).toLocaleString('fr-CA', { dateStyle: 'short', timeStyle: 'short' }) + ' · en direct'; markIdeal();
         return;
       }
     } catch (e) { /* navigateur sans accès direct : on garde la copie */ }
