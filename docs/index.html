@@ -25,6 +25,7 @@
   .cards { display:grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap:12px; margin-bottom:16px; }
   .card { background:var(--card); border-radius:12px; padding:14px 16px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
   .card .label { font-size:.8rem; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
+  #qarrow { font-size:1.1rem; font-weight:700; color:var(--red); text-transform:none; }
   .card .value { font-size:1.7rem; font-weight:700; margin:4px 0 0; }
   .card .sub { font-size:.85rem; color:var(--muted); }
   .red { color:var(--red); } .navy { color:var(--navy); }
@@ -56,8 +57,7 @@
     <div class="card"><div class="label">Température de l’eau</div><div class="value navy" id="wtemp">–</div><div class="sub" id="wtemptime"></div></div>
     <div class="card"><div class="label">Température de l’air (Montréal)</div><div class="value navy" id="atemp">–</div><div class="sub" id="atempsub"></div></div>
     <div class="card"><div class="label">Wetsuit suggérée</div><div class="value" id="wetsuit" style="font-size:1.35rem">–</div><div class="sub" id="wetsuitsub"></div></div>
-    <div class="card"><div class="label">Prévision demain (J+1)</div><div class="value red" id="fc1">–</div><div class="sub" id="fc1m"></div></div>
-    <div class="card"><div class="label">Tendance du débit (7 jours)</div><div class="value red" id="qfc1">–</div><div class="sub" id="qfc1s"></div></div>
+    <div class="card"><div class="label">Prévision demain (J+1) · débit <span id="qarrow" title="tendance du débit sur 7 jours"></span></div><div class="value red" id="fc1">–</div><div class="sub" id="fc1m"></div></div>
     <div class="card"><div class="label">Tendance sur 7 jours</div><div class="value" id="trend">–</div><div class="sub" id="trendsub"></div></div>
     <div class="card"><div class="label">Dernier jour complet (J)</div><div class="value navy" id="obsJ">–</div><div class="sub" id="dayJ"></div></div>
     <div class="card"><div class="label">Débit Mille Îles – Bois-des-Filion</div><div class="value navy" id="dbdf">–</div><div class="sub" id="dbdftime"></div></div>
@@ -119,7 +119,7 @@ fetch('data.json?t=' + Date.now()).then(r => r.json()).then(d => {
     if (a < 150) return '→ stable'; const amp = a < 400 ? 'légère' : a < 800 ? 'marquée' : 'forte';
     return (dq > 0 ? '↗ hausse ' : '↘ baisse ') + amp; };
   document.getElementById('rows').innerHTML = f.map(x => { const q = qmap[x.date]; return `<tr><td>${fdate(x.date)}</td><td class="lvl">${fmt(x.level)}</td><td>${x.margin.toFixed(2)}</td><td>${fmt(x.level - x.margin)} … ${fmt(x.level + x.margin)}</td><td>${x.spine == null ? '–' : fmt(x.spine)}</td><td>${q ? trendQ(q.q) + (q.src === 'persistance' ? ' *' : '') : '–'}</td></tr>`; }).join('');
-  if (qf.length && q0 != null) { const last = qf[qf.length - 1]; document.getElementById('qfc1').textContent = trendQ(last.q); const dq = last.q - q0; document.getElementById('qfc1s').textContent = 'd’ici ' + fdate(last.date) + ' · ' + (Math.abs(dq) < 150 ? 'variation sous le bruit (±150 m³/s)' : 'de l’ordre de ' + (dq > 0 ? '+' : '−') + (Math.round(Math.abs(dq) / 100) * 100).toLocaleString('fr-CA') + ' m³/s') + (last.src === 'spine' ? ' · d’après SPINE' : ' · persistance'); } else document.getElementById('qfc1s').textContent = 'indisponible';
+  if (qf.length && q0 != null) { const last = qf[qf.length - 1]; document.getElementById('qarrow').textContent = trendQ(last.q).charAt(0); }
   const sk = d.skill || {}; const keys = Object.keys(sk);
   let skillTxt = keys.length ? '<strong>Précision mesurée (auto-apprentissage, archives des dernières semaines) :</strong> ' + keys.map(k => `${k} : SPINE ±${(sk[k].rmse_spine*100).toFixed(0)} cm → ajusté ±${(sk[k].rmse_adj*100).toFixed(0)} cm (n=${sk[k].n})`).join(' · ') : '<strong>Auto-apprentissage :</strong> l’archivage des prévisions a commencé ; la correction automatique de SPINE et les statistiques de précision apparaîtront après une dizaine de jours de données.';
   if (d.stat_skill) skillTxt += ` · Modèle statistique à J+1 : ±${(d.stat_skill.rmse_J1*100).toFixed(0)} cm (${d.stat_skill.n} jours).`;
