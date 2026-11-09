@@ -102,9 +102,11 @@ function render() {
   document.getElementById('stats').innerHTML = st.map(s => `<div class="stat ${s[3] || ''}"><div class="l">${s[0]}</div><div class="v">${s[1]}</div><div class="s">${s[2]}</div></div>`).join('') || '<div class="stat"><div class="l">Aucune donnée</div><div class="s">pour cette sélection</div></div>';
   document.getElementById('ctitle').textContent = `Niveau mesuré vs prévu ${k} jour${k > 1 ? 's' : ''} plus tôt` + (n ? ` – ${fdate(rows[0].date)} → ${fdate(rows[n - 1].date)}` : '');
   const noon = s => new Date(s + 'T12:00:00').getTime();
+  // coupe la ligne quand des jours sont exclus (glace, données manquantes) au lieu de tirer un trait à travers le trou
+  const gapped = (arr, get) => { const out = []; for (let i = 0; i < arr.length; i++) { if (i && (noon(arr[i].date) - noon(arr[i - 1].date)) > 3 * 864e5) out.push({ x: noon(arr[i - 1].date) + 864e5, y: null }); out.push({ x: noon(arr[i].date), y: get(arr[i]) }); } return out; };
   const sets = [
-    { label: 'Mesuré', data: rows.map(d => ({ x: noon(d.date), y: d.obs })), borderColor: C_OBS, backgroundColor: C_OBS, pointRadius: n > 120 ? 0 : 3, borderWidth: 2, tension: 0 },
-    { label: 'Prévu (modèle, J+' + k + ')', data: rows.map(d => ({ x: noon(d.date), y: d.m[k - 1] })), borderColor: C_RED, backgroundColor: C_RED, borderDash: [6, 4], pointRadius: n > 120 ? 0 : 3, pointStyle: 'triangle', borderWidth: 2, tension: 0 }];
+    { label: 'Mesuré', data: gapped(rows, d => d.obs), spanGaps: false, borderColor: C_OBS, backgroundColor: C_OBS, pointRadius: n > 120 ? 0 : 3, borderWidth: 2, tension: 0 },
+    { label: 'Prévu (modèle, J+' + k + ')', data: gapped(rows, d => d.m[k - 1]), spanGaps: false, borderColor: C_RED, backgroundColor: C_RED, borderDash: [6, 4], pointRadius: n > 120 ? 0 : 3, pointStyle: 'triangle', borderWidth: 2, tension: 0 }];
   if (es.length) sets.push({ label: 'Prévu (SPINE, J+' + k + ')', data: sp.map(d => ({ x: noon(d.date), y: d.s[k - 1] })), borderColor: C_SP, backgroundColor: C_SP, borderDash: [2, 3], pointRadius: 3, borderWidth: 1.5, tension: 0, spanGaps: true });
   const fr = { day: 'numeric', month: 'short' }, frY = { day: 'numeric', month: 'short', year: '2-digit' };
   if (chart) chart.destroy();
