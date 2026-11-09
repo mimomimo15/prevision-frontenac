@@ -270,6 +270,33 @@ def main():
         fine = [{"t": p["eventDate"], "v": round(p["value"], 3)} for p in r.json()]
     except Exception as e:
         print("série 5 min indisponible :", e)
+    # ------------------------------------------------------------------ auto-évaluation de la tendance du débit
+    # archive : (date d'émission J, jour cible, variation prévue vs débit du jour J) ; évaluation : variation observée
+    # (débit journalier LaSalle, hist) -> fiabilité du sens de la flèche par horizon, et seuil "stable" (±150 m³/s)
+    QA = os.path.join(DOCS, "qtrend_archive.csv")
+    q_rows = []
+    if os.path.exists(QA):
+        with open(QA, newline="", encoding="utf-8") as f:
+            q_rows = [(r["issued_day"], r["target_date"], float(r["dq_forecast"])) for r in csv.DictReader(f)]
+    if q_fc and J in q_las:
+        issued_day = J.isoformat()
+        q_rows = [r for r in q_rows if r[0] != issued_day]           # une seule émission par jour J (la dernière)
+        q_rows += [(issued_day, row["date"], float(row["q"] - q_las[J])) for row in q_fc]
+    with open(QA, "w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f); w.writerow(["issued_day", "target_date", "dq_forecast"])
+        for r in q_rows: w.writerow([r[0], r[1], f"{r[2]:.0f}"])
+    def sign(x): return 0 if abs(x) < 150 else (1 if x > 0 else -1)
+    qskill = {}
+    stats = {}
+    for iss, tgt, dqf in q_rows:
+        di, dtg = dt.date.fromisoformat(iss), dt.date.fromisoformat(tgt)
+        if di in hist and dtg in hist and hist[di]["lasalle_q"] is not None and hist[dtg]["lasalle_q"] is not None:
+            k = (dtg - di).days; dqo = hist[dtg]["lasalle_q"] - hist[di]["lasalle_q"]
+            st = stats.setdefault(k, {"n": 0, "ok": 0, "abs_err": 0.0})
+            st["n"] += 1; st["ok"] += int(sign(dqf) == sign(dqo)); st["abs_err"] += abs(dqf - dqo)
+    for k, st in stats.items():
+        if st["n"] >= 10:
+            qskill[str(k)] = {"n": st["n"], "hit": round(st["ok"] / st["n"], 2), "mae": round(st["abs_err"] / st["n"])}
     days60 = [d for d in sorted(hist) if d <= J][-60:]
     data = {
         "generated": dt.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -277,7 +304,7 @@ def main():
         "day_J": J.isoformat(), "obs_J": round(h[J]["frontenac_zc"], 3), "pc_J": round(h[J]["pointeclaire_igld85"], 3), "sa_J": round(h[J]["steanne_igld85"], 3),
         "residual": round(res, 3), "ice": pf.is_ice(J), "model": model_used, "britannia_q": (round(br[J]) if J in br else None), "live": live, "water_temp": water_temp, "discharge": discharge,
         "partial_today": (round(partial["frontenac_zc"], 3) if partial and partial["frontenac_zc"] is not None else None),
-        "history": [{"date": d.isoformat(), "obs": round(hist[d]["frontenac_zc"], 3)} for d in days60], "hourly": hourly, "fine": fine, "spine_hourly": spine_hourly, "spine_adj": spine_adj, "skill": skill, "stat_skill": stat_skill, "q_forecast": q_fc, "discharge_bdf": discharge_bdf, "air": air, "ms_flow": ms_flow, "q_anchor_day": (round(q_las[J]) if J in q_las else None),
+        "history": [{"date": d.isoformat(), "obs": round(hist[d]["frontenac_zc"], 3)} for d in days60], "hourly": hourly, "fine": fine, "spine_hourly": spine_hourly, "spine_adj": spine_adj, "skill": skill, "stat_skill": stat_skill, "q_forecast": q_fc, "qskill": qskill, "discharge_bdf": discharge_bdf, "air": air, "ms_flow": ms_flow, "q_anchor_day": (round(q_las[J]) if J in q_las else None),
         "forecast": [{"date": d.isoformat(), "level": round(l, 3), "margin": round(m, 3), "spine": (round(spine[d], 3) if d in spine else None)} for d, l, m in fc],
     }
     with open(os.path.join(DOCS, "data.json"), "w", encoding="utf-8") as f:
