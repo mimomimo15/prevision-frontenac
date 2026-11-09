@@ -88,12 +88,12 @@
     <thead><tr><th>Jour</th><th>Niveau prévu (m)</th><th>Marge ± (90 %)</th><th>Fourchette</th><th>SPINE (SHC)</th><th>Tendance du débit</th></tr></thead>
     <tbody id="rows"></tbody>
   </table>
+  <div class="chart-wrap" style="margin-top:16px"><div class="ctitle">2 dernières semaines – niveau mesuré vs prévu la veille (J+1) <span id="cmpstat" class="sub" style="font-weight:400"></span></div><canvas id="chartcmp"></canvas></div>
   <p class="note" id="skill"></p>
   <p class="note" id="method"></p>
   <p class="note"><strong>Wetsuit :</strong> suggestion indicative basée sur une grille classique (eau ≥ 22 °C : lycra ; 18–22 : shorty/3-2 ; 14–18 : 3/2 ; 10–14 : 4/3 + bottes ; 6–10 : 5/4 + bottes, gants, cagoule ; < 6 : 6/5 à cagoule), relevée d’un cran si le ressenti de l’air est sous 10 °C ou le vent au-dessus de 25 km/h. Adapte selon ta tolérance au froid et la durée de session.</p>
   <p class="note"><strong>Tendance du débit :</strong> sens de la variation du débit à LaSalle par rapport à aujourd’hui, déduit des niveaux prévus par SPINE à Frontenac et Varennes (la pente entre les deux stations reflète le débit). « Stable » = variation sous ±150 m³/s ; légère 150–400 (≈ 2–5 cm de niveau), marquée 400–800 (≈ 5–10 cm), forte > 800. Un astérisque signale un jour où SPINE manquait.</p>
   <p class="note"><strong>Comment lire :</strong> la marge indique l'écart à l'intérieur duquel 90 % des journées passées sont tombées (validation 2024–2025). Elle s'élargit avec l'horizon parce que les débits futurs des barrages (lac Ontario, Carillon) ne sont pas connus.</p>
-  <div class="chart-wrap" style="margin-top:18px"><div class="ctitle">2 dernières semaines – niveau mesuré vs prévu la veille (J+1) <span id="cmpstat" class="sub" style="font-weight:400"></span></div><canvas id="chartcmp"></canvas></div>
   <p class="note"><strong>Mesuré vs prévu :</strong> chaque point « prévu » est la prévision pour ce jour émise la veille, avec les seules données connues à ce moment. La courbe SPINE se remplit au fil des jours à partir de l'archive (début 9 novembre 2026). L'écart moyen affiché est la moyenne des écarts absolus modèle / mesure sur la période.</p>
   <p class="note"><strong>SPINE :</strong> chaque prévision (SPINE et modèle statistique) est archivée à chaque mise à jour pour mesurer leur précision au fil des semaines. La colonne SPINE du tableau est la prévision hydrodynamique officielle du Service hydrographique du Canada pour la même station : quand les deux convergent, la confiance est élevée ; quand elles divergent, un changement de débit est probablement prévu en amont.</p>
 </main>
