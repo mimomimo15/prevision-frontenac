@@ -53,7 +53,7 @@
   <div class="cards">
     <div class="card"><div class="label">Niveau en direct</div><div class="value navy" id="live">–</div><div class="sub" id="livetime"></div></div>
     <div class="card"><div class="label">Débit en direct (LaSalle)</div><div class="value navy" id="disch">–</div><div class="sub" id="dischtime"></div></div>
-    <div class="card"><div class="label">Débit prévu demain</div><div class="value red" id="qfc1">–</div><div class="sub" id="qfc1s"></div></div>
+    <div class="card"><div class="label">Tendance du débit (7 jours)</div><div class="value red" id="qfc1">–</div><div class="sub" id="qfc1s"></div></div>
     <div class="card"><div class="label">Température de l’eau</div><div class="value navy" id="wtemp">–</div><div class="sub" id="wtemptime"></div></div>
     <div class="card"><div class="label">Prévision demain (J+1)</div><div class="value red" id="fc1">–</div><div class="sub" id="fc1m"></div></div>
     <div class="card"><div class="label">Tendance sur 7 jours</div><div class="value" id="trend">–</div><div class="sub" id="trendsub"></div></div>
@@ -63,12 +63,12 @@
   <div class="chart-wrap"><div class="ctitle">Prochaines 48 h, heure par heure – prévision hydrodynamique SPINE (SHC) et 24 dernières heures observées</div><canvas id="chart48"></canvas></div>
   <div class="chart-wrap"><div class="ctitle">7 prochains jours (moyennes journalières) – modèle statistique et SPINE</div><canvas id="chart"></canvas></div>
   <table>
-    <thead><tr><th>Jour</th><th>Niveau prévu (m)</th><th>Marge ± (90 %)</th><th>Fourchette</th><th>SPINE (SHC)</th><th>Débit prévu (m³/s)</th></tr></thead>
+    <thead><tr><th>Jour</th><th>Niveau prévu (m)</th><th>Marge ± (90 %)</th><th>Fourchette</th><th>SPINE (SHC)</th><th>Tendance du débit</th></tr></thead>
     <tbody id="rows"></tbody>
   </table>
   <p class="note" id="skill"></p>
   <p class="note" id="method"></p>
-  <p class="note"><strong>Débit prévu :</strong> débit mesuré à LaSalle aujourd’hui + variation déduite des niveaux prévus par SPINE à Frontenac et Varennes (la pente entre les deux stations reflète le débit ; relation calibrée 2019–2025, ±275 m³/s en absolu, ±140 à ±240 m³/s en variation). Un astérisque signale un jour où SPINE manquait (débit supposé inchangé). <strong>Comment lire :</strong> la marge indique l'écart à l'intérieur duquel 90 % des journées passées sont tombées (validation 2024–2025). Elle s'élargit avec l'horizon parce que les débits futurs des barrages (lac Ontario, Carillon) ne sont pas connus. Le graphique horaire à 48 h repose sur SPINE, le modèle hydrodynamique du SHC, seule source qui prédit heure par heure ; chaque prévision (SPINE et modèle statistique) est archivée à chaque mise à jour pour mesurer leur précision au fil des semaines. La colonne SPINE est la prévision hydrodynamique officielle du Service hydrographique du Canada pour la même station : quand les deux convergent, la confiance est élevée ; quand elles divergent, un changement de débit est probablement prévu en amont.</p>
+  <p class="note"><strong>Tendance du débit :</strong> sens de la variation du débit à LaSalle par rapport à aujourd’hui, déduit des niveaux prévus par SPINE à Frontenac et Varennes (la pente entre les deux stations reflète le débit). « Stable » = variation sous ±150 m³/s ; légère 150–400 (≈ 2–5 cm de niveau), marquée 400–800 (≈ 5–10 cm), forte > 800. Un astérisque signale un jour où SPINE manquait. <strong>Comment lire :</strong> la marge indique l'écart à l'intérieur duquel 90 % des journées passées sont tombées (validation 2024–2025). Elle s'élargit avec l'horizon parce que les débits futurs des barrages (lac Ontario, Carillon) ne sont pas connus. Le graphique horaire à 48 h repose sur SPINE, le modèle hydrodynamique du SHC, seule source qui prédit heure par heure ; chaque prévision (SPINE et modèle statistique) est archivée à chaque mise à jour pour mesurer leur précision au fil des semaines. La colonne SPINE est la prévision hydrodynamique officielle du Service hydrographique du Canada pour la même station : quand les deux convergent, la confiance est élevée ; quand elles divergent, un changement de débit est probablement prévu en amont.</p>
 </main>
 <footer>
   Outil indicatif, non officiel. Données : <a href="https://www.marees.gc.ca" target="_blank" rel="noopener">Service hydrographique du Canada (API IWLS)</a>, <a href="https://ijc.org/en/loslrb/watershed/outflow-changes" target="_blank" rel="noopener">Commission mixte internationale (débits du lac Ontario)</a> et <a href="https://eaux.ec.gc.ca" target="_blank" rel="noopener">Environnement et Changement climatique Canada</a>, licence ouverte. Pour la navigation et la sécurité, consultez les prévisions officielles du SHC et <a href="https://vigilance.geo.msp.gouv.qc.ca" target="_blank" rel="noopener">Vigilance Québec</a>.
@@ -92,9 +92,12 @@ fetch('data.json?t=' + Date.now()).then(r => r.json()).then(d => {
   document.getElementById('trend').textContent = (delta >= 0 ? '+' : '') + (delta * 100).toFixed(0) + ' cm';
   document.getElementById('trendsub').textContent = 'de J à J+7 (hypothèse : débits amont inchangés)';
   const qf = d.q_forecast || []; const qmap = Object.fromEntries(qf.map(q => [q.date, q]));
-  const fq = q => q == null ? '–' : q.toLocaleString('fr-CA') + ' m³/s';
-  document.getElementById('rows').innerHTML = f.map(x => { const q = qmap[x.date]; return `<tr><td>${fdate(x.date)}</td><td class="lvl">${fmt(x.level)}</td><td>${x.margin.toFixed(2)}</td><td>${fmt(x.level - x.margin)} … ${fmt(x.level + x.margin)}</td><td>${x.spine == null ? '–' : fmt(x.spine)}</td><td>${q ? fq(q.q) + (q.src === 'persistance' ? ' *' : '') : '–'}</td></tr>`; }).join('');
-  if (qf.length) { document.getElementById('qfc1').textContent = fq(qf[0].q); document.getElementById('qfc1s').textContent = '± ' + qf[0].p90 + ' m³/s · ' + fdate(qf[0].date) + (qf[0].src === 'spine' ? ' · variation d’après SPINE' : ' · persistance'); } else document.getElementById('qfc1s').textContent = 'indisponible';
+  const q0 = d.q_anchor_day;
+  const trendQ = q => { if (q == null || q0 == null) return '–'; const dq = q - q0, a = Math.abs(dq);
+    if (a < 150) return '→ stable'; const amp = a < 400 ? 'légère' : a < 800 ? 'marquée' : 'forte';
+    return (dq > 0 ? '↗ hausse ' : '↘ baisse ') + amp; };
+  document.getElementById('rows').innerHTML = f.map(x => { const q = qmap[x.date]; return `<tr><td>${fdate(x.date)}</td><td class="lvl">${fmt(x.level)}</td><td>${x.margin.toFixed(2)}</td><td>${fmt(x.level - x.margin)} … ${fmt(x.level + x.margin)}</td><td>${x.spine == null ? '–' : fmt(x.spine)}</td><td>${q ? trendQ(q.q) + (q.src === 'persistance' ? ' *' : '') : '–'}</td></tr>`; }).join('');
+  if (qf.length && q0 != null) { const last = qf[qf.length - 1]; document.getElementById('qfc1').textContent = trendQ(last.q); const dq = last.q - q0; document.getElementById('qfc1s').textContent = 'd’ici ' + fdate(last.date) + ' · ' + (Math.abs(dq) < 150 ? 'variation sous le bruit (±150 m³/s)' : 'de l’ordre de ' + (dq > 0 ? '+' : '−') + (Math.round(Math.abs(dq) / 100) * 100).toLocaleString('fr-CA') + ' m³/s') + (last.src === 'spine' ? ' · d’après SPINE' : ' · persistance'); } else document.getElementById('qfc1s').textContent = 'indisponible';
   const sk = d.skill || {}; const keys = Object.keys(sk);
   let skillTxt = keys.length ? '<strong>Précision mesurée (auto-apprentissage, archives des dernières semaines) :</strong> ' + keys.map(k => `${k} : SPINE ±${(sk[k].rmse_spine*100).toFixed(0)} cm → ajusté ±${(sk[k].rmse_adj*100).toFixed(0)} cm (n=${sk[k].n})`).join(' · ') : '<strong>Auto-apprentissage :</strong> l’archivage des prévisions a commencé ; la correction automatique de SPINE et les statistiques de précision apparaîtront après une dizaine de jours de données.';
   if (d.stat_skill) skillTxt += ` · Modèle statistique à J+1 : ±${(d.stat_skill.rmse_J1*100).toFixed(0)} cm (${d.stat_skill.n} jours).`;
