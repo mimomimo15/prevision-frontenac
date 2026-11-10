@@ -3,7 +3,8 @@ name: Mise à jour de la prévision
 on:
   schedule:
     # toutes les heures (à h+10) ; GitHub peut décaler de quelques minutes
-    - cron: "10 * * * *"
+    - cron: "23 * * * *"
+    - cron: "53 * * * *"
   workflow_dispatch:
   push:
     branches: [main]
