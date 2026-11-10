@@ -191,14 +191,19 @@ function idealWindow() {
 })();
 fetch('data.json?t=' + Date.now()).then(r => r.json()).then(d => {
   document.getElementById('updated').textContent = 'Mis à jour le ' + new Date(d.generated).toLocaleString('fr-CA', { dateStyle: 'medium', timeStyle: 'short' });
-  // bandeau si quelque chose est en retard : site (> 3 h), niveau SHC (> 2 h), débit ECCC (> 6 h)
-  try {
-    const ageH = s => (Date.now() - new Date(s).getTime()) / 3600e3, late = [];
-    if (ageH(d.generated) > 3) late.push(`le site ne s’est pas mis à jour depuis ${Math.round(ageH(d.generated))} h`);
-    if (d.live && ageH(d.live.time) > 2) late.push(`dernier niveau du SHC il y a ${Math.round(ageH(d.live.time))} h`); else if (!d.live) late.push('niveau en direct indisponible');
-    if (d.discharge && ageH(d.discharge.time) > 6) late.push(`dernier débit ECCC il y a ${Math.round(ageH(d.discharge.time))} h`); else if (!d.discharge) late.push('débit en direct indisponible');
-    if (late.length) { const b = document.getElementById('stale'); b.textContent = '⚠ Données en retard : ' + late.join(' · ') + '. Les valeurs affichées peuvent être périmées.'; b.style.display = 'block'; }
-  } catch (e) {}
+  // bandeau si quelque chose est en retard : site (> 3 h), niveau SHC (> 2 h, d'après la lecture la plus récente, y compris celle obtenue directement par le navigateur), débit ECCC (> 6 h)
+  window.checkStale = function (liveTime) {
+    try {
+      const ageH = s => (Date.now() - new Date(s).getTime()) / 3600e3, late = [];
+      if (ageH(d.generated) > 3) late.push(`le site ne s’est pas mis à jour depuis ${Math.round(ageH(d.generated))} h`);
+      const lt = liveTime || (d.live && d.live.time);
+      if (lt && ageH(lt) > 2) late.push(`dernier niveau du SHC il y a ${Math.round(ageH(lt))} h`); else if (!lt) late.push('niveau en direct indisponible');
+      if (d.discharge && ageH(d.discharge.time) > 6) late.push(`dernier débit ECCC il y a ${Math.round(ageH(d.discharge.time))} h`); else if (!d.discharge) late.push('débit en direct indisponible');
+      const b = document.getElementById('stale');
+      if (late.length) { b.textContent = '⚠ Données en retard : ' + late.join(' · ') + '. Les valeurs affichées peuvent être périmées.'; b.style.display = 'block'; } else b.style.display = 'none';
+    } catch (e) {}
+  };
+  checkStale(null);
   if (d.ice) document.getElementById('icewarn').style.display = 'block';
   if (d.live) { liveLevel = d.live.value; document.getElementById('live').textContent = fmt(d.live.value); document.getElementById('livetime').textContent = 'lecture du ' + new Date(d.live.time).toLocaleString('fr-CA', { dateStyle: 'short', timeStyle: 'short' }); }
   else { liveLevel = d.partial_today; document.getElementById('live').textContent = d.partial_today != null ? fmt(d.partial_today) : '–'; document.getElementById('livetime').textContent = d.partial_today != null ? 'moyenne partielle d’aujourd’hui' : 'indisponible'; }
@@ -287,7 +292,7 @@ fetch('data.json?t=' + Date.now()).then(r => r.json()).then(d => {
       if (live.length > 10) {
         drawDay(live, '· en direct (SHC)');
         const last = live[live.length - 1];
-        liveLevel = last.y; document.getElementById('live').textContent = fmt(last.y); document.getElementById('livetime').textContent = 'lecture du ' + new Date(last.x).toLocaleString('fr-CA', { dateStyle: 'short', timeStyle: 'short' }) + ' · en direct'; markIdeal();
+        liveLevel = last.y; document.getElementById('live').textContent = fmt(last.y); document.getElementById('livetime').textContent = 'lecture du ' + new Date(last.x).toLocaleString('fr-CA', { dateStyle: 'short', timeStyle: 'short' }) + ' · en direct'; markIdeal(); if (window.checkStale) checkStale(new Date(last.x).toISOString());
         return;
       }
     } catch (e) { /* navigateur sans accès direct : on garde la copie */ }
