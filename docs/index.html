@@ -21,47 +21,49 @@
   :root { --green:#1a8f3c; --bad:#C00000; --navy:#1F3864; --red:#D9730D; --grey:#8a8a8a; --bg:#f6f7fa; --card:#ffffff; --text:#1b1b1b; --muted:#666; --head:#e9eef7; --line:#eeeeee; --grid:#e5e5e5; --grid0:#bbbbbb; --obs:#1F3864; --spine:#2E75B6; --warnbg:#fff4d6; color-scheme: light dark; }
   @media (prefers-color-scheme: dark) {
     :root { --green:#5fd37f; --bad:#ff6b6b; --navy:#9ab4e8; --red:#ffa94d; --bg:#121418; --card:#1c1f26; --text:#e8e8e8; --muted:#a0a6b3; --head:#262b36; --line:#2c3140; --grid:#2c3140; --grid0:#4a5063; --obs:#9ab4e8; --spine:#6fa8ff; --warnbg:#3a3010; }
-    header { background:#0e1a33; }
+    header { background:linear-gradient(135deg, #0c1730 0%, #15305f 60%, #1f4f8f 100%); }
   }
   * { box-sizing: border-box; }
-  body { margin:0; font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background:var(--bg); color:var(--text); }
-  header { background:var(--navy); color:#fff; padding:16px 16px; }
-  header h1 { margin:0; font-size:1.2rem; font-weight:600; } header p { margin:4px 0 0; font-size:.85rem; opacity:.85; }
+  body { margin:0; font-family: -apple-system, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background:var(--bg); color:var(--text); -webkit-font-smoothing:antialiased; }
+  header { background:linear-gradient(135deg, #1a3263 0%, #2b4f93 60%, #3b7dd8 100%); color:#fff; padding:18px 16px 20px; box-shadow:0 2px 12px rgba(20,40,90,.25); }
+  header h1 { margin:0; font-size:1.25rem; font-weight:700; letter-spacing:-.01em; } header p { margin:4px 0 0; font-size:.85rem; opacity:.85; }
   .hwrap { max-width:980px; margin:0 auto; display:flex; flex-direction:row; justify-content:space-between; align-items:center; text-align:left; gap:14px; }
   .hwrap > div:first-child, .hwrap > h1 { flex:1; min-width:0; }
-  .jbtn { display:inline-block; background:#fff; color:var(--navy); font-weight:700; font-size:1rem; padding:11px 18px; border-radius:10px; text-decoration:none; box-shadow:0 2px 6px rgba(0,0,0,.2); white-space:nowrap; }
-  .jbtn:hover { background:#e9eef7; } .hbtns { display:flex; gap:8px; }
+  .jbtn { display:inline-block; background:rgba(255,255,255,.14); color:#fff; border:1px solid rgba(255,255,255,.35); font-weight:600; font-size:.95rem; padding:10px 16px; border-radius:999px; text-decoration:none; white-space:nowrap; backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); }
+  .jbtn:hover { background:rgba(255,255,255,.26); } .hbtns { display:flex; gap:8px; }
   main { max-width: 980px; margin: 0 auto; padding: 16px; }
   .cards { display:grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap:12px; margin-bottom:16px; }
-  .card { background:var(--card); border-radius:12px; padding:14px 16px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
-  .card .label { font-size:.8rem; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
+  .card { background:var(--card); border-radius:16px; padding:14px 16px; box-shadow:0 2px 10px rgba(20,40,90,.06); border:1px solid var(--line); }
+  .card .label { font-size:.74rem; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; font-weight:600; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+  .card .label .ic { font-size:1rem; line-height:1; }
   #qarrow { font-size:1.1rem; font-weight:700; color:var(--red); text-transform:none; }
-  .card .value { font-size:1.7rem; font-weight:700; margin:4px 0 0; }
-  .card .sub { font-size:.85rem; color:var(--muted); }
+  .card .value { font-size:1.85rem; font-weight:800; margin:6px 0 2px; letter-spacing:-.02em; font-variant-numeric:tabular-nums; }
+  .card .sub { font-size:.82rem; color:var(--muted); line-height:1.4; }
   .red { color:var(--red); } .navy { color:var(--navy); } .ideal { color:var(--green) !important; } .ideal-tag { color:var(--green); font-weight:600; } .bad { color:var(--bad) !important; } .bad-tag { color:var(--bad); font-weight:600; }
-  .chart-wrap { background:var(--card); border-radius:12px; padding:12px; box-shadow:0 1px 3px rgba(0,0,0,.08); margin-bottom:16px; }
+  .chart-wrap { background:var(--card); border-radius:16px; padding:12px; box-shadow:0 2px 10px rgba(20,40,90,.06); border:1px solid var(--line); margin-bottom:16px; }
   canvas { width:100% !important; height:320px !important; }
-  .ctitle { font-size:.9rem; font-weight:600; color:var(--navy); margin:2px 4px 8px; }
-  table { width:100%; border-collapse:collapse; background:var(--card); border-radius:12px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,.08); font-size:.95rem; }
-  th, td { padding:10px 12px; text-align:right; border-bottom:1px solid var(--line); }
+  .ctitle { font-size:.9rem; font-weight:700; color:var(--navy); margin:2px 4px 8px; }
+  table { width:100%; border-collapse:separate; border-spacing:0; background:var(--card); border-radius:16px; overflow:hidden; box-shadow:0 2px 10px rgba(20,40,90,.06); border:1px solid var(--line); font-size:.95rem; }
+  th, td { padding:10px 12px; text-align:right; border-bottom:1px solid var(--line); } tr:last-child td { border-bottom:0; }
   th:first-child, td:first-child { text-align:left; }
-  th { background:var(--head); color:var(--navy); font-weight:600; font-size:.85rem; }
-  td.lvl { font-weight:700; color:var(--red); }
+  th { background:var(--head); color:var(--navy); font-weight:700; font-size:.8rem; text-transform:uppercase; letter-spacing:.04em; }
+  td.lvl { font-weight:800; color:var(--red); font-variant-numeric:tabular-nums; }
   .note { font-size:.85rem; color:var(--muted); margin:14px 0; line-height:1.45; }
 
-  .warn { background:var(--warnbg); border-left:4px solid #e0a800; padding:10px 12px; border-radius:8px; font-size:.9rem; margin-bottom:12px; }
+  .warn { background:var(--warnbg); border-left:4px solid #e0a800; padding:10px 12px; border-radius:10px; font-size:.9rem; margin-bottom:12px; }
   footer { font-size:.76rem; color:var(--muted); padding:8px 16px 20px; text-align:center; line-height:1.5; max-width:980px; margin:0 auto; } footer p { margin:6px 0; } footer a { color:var(--muted); }
   @media (max-width: 640px) {
-    header { padding:12px 12px 14px; } header h1 { font-size:1.05rem; } header p { font-size:.78rem; }
-    .hwrap { flex-direction:column; text-align:center; gap:10px; } .hwrap > div:first-child, .hwrap > h1 { flex:none; } .hbtns { display:flex; justify-content:center; gap:8px; width:100%; }
-    .jbtn, header a.back { flex:1; text-align:center; padding:11px 10px; font-size:.95rem; width:auto; }
-    main { padding:10px; }
-    .cards { grid-template-columns: 1fr 1fr; gap:8px; }
-    .card { padding:10px 12px; border-radius:10px; } .card .value { font-size:1.35rem; } .card .label { font-size:.68rem; } .card .sub { font-size:.74rem; }
+    header { padding:14px 14px 16px; } header h1 { font-size:1.08rem; } header p { font-size:.78rem; }
+    .hwrap { flex-direction:column; text-align:center; gap:12px; } .hwrap > div:first-child, .hwrap > h1 { flex:none; } .hbtns { display:flex; justify-content:center; gap:8px; width:100%; }
+    .jbtn, header a.back { flex:1; text-align:center; padding:10px 10px; font-size:.92rem; width:auto; }
+    main { padding:12px 12px 16px; }
+    .cards { grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:12px; }
+    .card { padding:12px 12px 11px; border-radius:14px; } .card .value { font-size:1.5rem; margin:5px 0 1px; } .card .label { font-size:.64rem; letter-spacing:.05em; } .card .label .ic { font-size:.9rem; } .card .sub { font-size:.72rem; }
     .card.wide { grid-column: 1 / -1; }
-    .chart-wrap { padding:8px 4px 4px; } .ctitle { font-size:.8rem; margin:2px 6px 6px; }
+    #wetsuit { font-size:1.15rem !important; }
+    .chart-wrap { padding:10px 6px 6px; border-radius:14px; margin-bottom:12px; } .ctitle { font-size:.8rem; margin:2px 6px 6px; }
     canvas { height:240px !important; }
-    table { font-size:.82rem; } th, td { padding:8px 6px; }
+    table { font-size:.82rem; border-radius:14px; } th, td { padding:9px 7px; } th { font-size:.68rem; }
     th:nth-child(3), td:nth-child(3), th:nth-child(4), td:nth-child(4) { display:none; }
     .note { font-size:.78rem; }
   }
@@ -81,19 +83,17 @@
   </div>
 </header>
 <main>
-  <p class="sub" id="updated" style="margin:0 0 10px;text-align:center"></p>
-  <div id="stale" style="display:none;background:var(--warnbg);color:var(--text);padding:10px 14px;border-radius:10px;margin-bottom:12px;font-size:.9rem;border-left:4px solid var(--red)"></div>
   <div id="icewarn" class="warn" style="display:none">Période de glace (décembre–mars) : la prévision est moins fiable (embâcles possibles).</div>
   <div class="cards">
-    <div class="card"><div class="label">Niveau en direct</div><div class="value navy" id="live">–</div><div class="sub" id="livetime"></div></div>
-    <div class="card"><div class="label">Débit en direct (LaSalle)</div><div class="value navy" id="disch">–</div><div class="sub" id="dischtime"></div></div>
-    <div class="card"><div class="label">Température de l’eau</div><div class="value navy" id="wtemp">–</div><div class="sub" id="wtemptime"></div></div>
-    <div class="card"><div class="label">Température de l’air (Montréal)</div><div class="value navy" id="atemp">–</div><div class="sub" id="atempsub"></div></div>
-    <div class="card"><div class="label">Dernier jour complet (J)</div><div class="value navy" id="obsJ">–</div><div class="sub" id="dayJ"></div></div>
-    <div class="card"><div class="label">Débit Mille Îles – Bois-des-Filion</div><div class="value navy" id="dbdf">–</div><div class="sub" id="dbdftime"></div></div>
-    <div class="card wide"><div class="label">Prévision demain (J+1) · débit <span id="qarrow" title="tendance du débit sur 7 jours (le pourcentage, quand il apparaît, est la part des fois où le sens de la flèche s’est avéré juste)"></span></div><div class="value red" id="fc1">–</div><div class="sub" id="fc1m"></div></div>
-    <div class="card wide" id="winCard" style="display:none"><div class="label">Fenêtre idéale (d’après ton journal)</div><div id="win" style="margin:4px 0;font-size:1.05rem;line-height:1.5"></div><div class="sub" id="winsub"></div></div>
-    <div class="card wide"><div class="label">Wetsuit suggérée</div><div class="value" id="wetsuit" style="font-size:1.35rem">–</div><div class="sub" id="wetsuitsub"></div></div>
+    <div class="card"><div class="label"><span class="ic">🌊</span>Niveau en direct</div><div class="value navy" id="live">–</div><div class="sub" id="livetime"></div></div>
+    <div class="card"><div class="label"><span class="ic">💧</span>Débit en direct (LaSalle)</div><div class="value navy" id="disch">–</div><div class="sub" id="dischtime"></div></div>
+    <div class="card"><div class="label"><span class="ic">🌡️</span>Température de l’eau</div><div class="value navy" id="wtemp">–</div><div class="sub" id="wtemptime"></div></div>
+    <div class="card"><div class="label"><span class="ic">🌤️</span>Température de l’air (Montréal)</div><div class="value navy" id="atemp">–</div><div class="sub" id="atempsub"></div></div>
+    <div class="card"><div class="label"><span class="ic">📅</span>Dernier jour complet (J)</div><div class="value navy" id="obsJ">–</div><div class="sub" id="dayJ"></div></div>
+    <div class="card"><div class="label"><span class="ic">🏞️</span>Débit Mille Îles – Bois-des-Filion</div><div class="value navy" id="dbdf">–</div><div class="sub" id="dbdftime"></div></div>
+    <div class="card wide"><div class="label"><span class="ic">🔮</span>Prévision demain (J+1) · débit <span id="qarrow" title="tendance du débit sur 7 jours (le pourcentage, quand il apparaît, est la part des fois où le sens de la flèche s’est avéré juste)"></span></div><div class="value red" id="fc1">–</div><div class="sub" id="fc1m"></div></div>
+    <div class="card wide" id="winCard" style="display:none"><div class="label"><span class="ic">🎯</span>Fenêtre idéale (d’après ton journal)</div><div id="win" style="margin:4px 0;font-size:1.05rem;line-height:1.5"></div><div class="sub" id="winsub"></div></div>
+    <div class="card wide"><div class="label"><span class="ic">🤿</span>Wetsuit suggérée</div><div class="value" id="wetsuit" style="font-size:1.35rem">–</div><div class="sub" id="wetsuitsub"></div></div>
   </div>
   <div class="chart-wrap"><div class="ctitle">Niveau des 24 dernières heures, au pas de 5 minutes <span id="finesrc" class="sub" style="font-weight:400"></span></div><canvas id="chartday"></canvas></div>
   <div class="chart-wrap"><div class="ctitle">7 prochains jours (moyennes journalières) – modèle statistique et SPINE</div><canvas id="chart"></canvas></div>
@@ -190,20 +190,7 @@ function idealWindow() {
   } catch (e) { /* pas de journal sur cet appareil */ }
 })();
 fetch('data.json?t=' + Date.now()).then(r => r.json()).then(d => {
-  document.getElementById('updated').textContent = 'Mis à jour le ' + new Date(d.generated).toLocaleString('fr-CA', { dateStyle: 'medium', timeStyle: 'short' });
-  // bandeau si quelque chose est en retard : site (> 3 h), niveau SHC (> 2 h, d'après la lecture la plus récente, y compris celle obtenue directement par le navigateur), débit ECCC (> 6 h)
-  window.checkStale = function (liveTime) {
-    try {
-      const ageH = s => (Date.now() - new Date(s).getTime()) / 3600e3, late = [];
-      if (ageH(d.generated) > 3) late.push(`le site ne s’est pas mis à jour depuis ${Math.round(ageH(d.generated))} h`);
-      const lt = liveTime || (d.live && d.live.time);
-      if (lt && ageH(lt) > 2) late.push(`dernier niveau du SHC il y a ${Math.round(ageH(lt))} h`); else if (!lt) late.push('niveau en direct indisponible');
-      if (d.discharge && ageH(d.discharge.time) > 6) late.push(`dernier débit ECCC il y a ${Math.round(ageH(d.discharge.time))} h`); else if (!d.discharge) late.push('débit en direct indisponible');
-      const b = document.getElementById('stale');
-      if (late.length) { b.textContent = '⚠ Données en retard : ' + late.join(' · ') + '. Les valeurs affichées peuvent être périmées.'; b.style.display = 'block'; } else b.style.display = 'none';
-    } catch (e) {}
-  };
-  checkStale(null);
+  window.checkStale = function () {};   // bandeau « données en retard » retiré à la demande de l'utilisateur
   if (d.ice) document.getElementById('icewarn').style.display = 'block';
   if (d.live) { liveLevel = d.live.value; document.getElementById('live').textContent = fmt(d.live.value); document.getElementById('livetime').textContent = 'lecture du ' + new Date(d.live.time).toLocaleString('fr-CA', { dateStyle: 'short', timeStyle: 'short' }); }
   else { liveLevel = d.partial_today; document.getElementById('live').textContent = d.partial_today != null ? fmt(d.partial_today) : '–'; document.getElementById('livetime').textContent = d.partial_today != null ? 'moyenne partielle d’aujourd’hui' : 'indisponible'; }
