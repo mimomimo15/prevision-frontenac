@@ -71,6 +71,18 @@
   #installbar { display:none; position:fixed; left:12px; right:12px; bottom:12px; z-index:50; background:var(--card); color:var(--text); border:1px solid var(--line); border-radius:12px; padding:12px 14px; box-shadow:0 6px 24px rgba(0,0,0,.25); font-size:.9rem; line-height:1.4; max-width:560px; margin:0 auto; }
   #installbar b { color:var(--navy); } #installbar .ib { display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; }
   #installbar button { border:0; border-radius:8px; padding:9px 14px; font-weight:600; cursor:pointer; font-size:.9rem; } #installbar .go { background:var(--navy); color:#fff; } #installbar .no { background:transparent; color:var(--muted); }
+  /* barre d'onglets en bas (mobile) */
+  .tabbar { display:none; }
+  @media (max-width: 640px) {
+    .hbtns { display:none !important; }
+    .hwrap { gap:0; }
+    body { padding-bottom:calc(64px + env(safe-area-inset-bottom)); }
+    .tabbar { display:flex; position:fixed; left:0; right:0; bottom:0; z-index:40; background:var(--card); border-top:1px solid var(--line); padding:6px 8px calc(6px + env(safe-area-inset-bottom)); box-shadow:0 -4px 16px rgba(20,40,90,.08); }
+    .tabbar a { flex:1; display:flex; flex-direction:column; align-items:center; gap:2px; padding:7px 4px; border-radius:12px; text-decoration:none; color:var(--muted); font-size:.78rem; font-weight:600; }
+    .tabbar a .ti { font-size:1.25rem; line-height:1.1; }
+    .tabbar a.active { color:var(--navy); background:var(--head); }
+    #installbar { bottom:calc(72px + env(safe-area-inset-bottom)); }
+  }
 </style>
 </head>
 <body>
@@ -116,6 +128,7 @@
   <div id="installtxt"><b>Installer comme application</b> — une icône sur ton écran d’accueil, plein écran, et la dernière prévision reste consultable sans réseau.</div>
   <div class="ib"><button class="go" id="installgo">Installer</button><button class="no" id="installno">Plus tard</button></div>
 </div>
+<nav class="tabbar"><a href="./" class="active"><span class="ti">🌊</span>Prévisions</a><a href="validation.html"><span class="ti">📈</span>Validation</a><a href="journal.html"><span class="ti">📓</span>Journal</a></nav>
 <footer>
   <p><strong>Outil personnel, indicatif et non officiel</strong>, sans garantie d'exactitude ni de disponibilité. Les prévisions sont statistiques et peuvent être fausses de plusieurs centimètres ; le surf en rivière comporte des risques et chacun reste responsable de ses décisions. Pour la navigation et la sécurité, consultez les prévisions officielles du <a href="https://www.marees.gc.ca" target="_blank" rel="noopener">Service hydrographique du Canada</a> et <a href="https://vigilance.geo.msp.gouv.qc.ca" target="_blank" rel="noopener">Vigilance Québec</a>.</p>
   <p>Sources : niveaux d'eau, température de l'eau et prévision SPINE du <a href="https://www.marees.gc.ca" target="_blank" rel="noopener">Service hydrographique du Canada</a> (Pêches et Océans Canada, API IWLS) ; débits hydrométriques d'<a href="https://eaux.ec.gc.ca" target="_blank" rel="noopener">Environnement et Changement climatique Canada</a> (données provisoires non validées) ; variations de débit du lac Ontario de la <a href="https://ijc.org/fr/clofsl" target="_blank" rel="noopener">Commission mixte internationale</a> ; météo d'<a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> (<a href="https://creativecommons.org/licenses/by/4.0/deed.fr" target="_blank" rel="noopener">CC BY 4.0</a>). Contient de l'information visée par la <a href="https://ouvert.canada.ca/fr/licence-du-gouvernement-ouvert-canada" target="_blank" rel="noopener">Licence du gouvernement ouvert – Canada</a>. Ce site n'est ni produit ni approuvé par le gouvernement du Canada ; les données ont été transformées (moyennes, conversions de référence, modèle statistique).</p>

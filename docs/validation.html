@@ -52,6 +52,18 @@
     #chart { height:260px !important; } #hist { height:180px !important; }
     .stat .v { font-size:1.25rem; } th, td { padding:7px 6px; font-size:.85rem; } th:nth-child(5), td:nth-child(5), th:nth-child(6), td:nth-child(6) { display:none; }
   }
+  /* barre d'onglets en bas (mobile) */
+  .tabbar { display:none; }
+  @media (max-width: 640px) {
+    .hbtns { display:none !important; }
+    .hwrap { gap:0; }
+    body { padding-bottom:calc(64px + env(safe-area-inset-bottom)); }
+    .tabbar { display:flex; position:fixed; left:0; right:0; bottom:0; z-index:40; background:var(--card); border-top:1px solid var(--line); padding:6px 8px calc(6px + env(safe-area-inset-bottom)); box-shadow:0 -4px 16px rgba(20,40,90,.08); }
+    .tabbar a { flex:1; display:flex; flex-direction:column; align-items:center; gap:2px; padding:7px 4px; border-radius:12px; text-decoration:none; color:var(--muted); font-size:.78rem; font-weight:600; }
+    .tabbar a .ti { font-size:1.25rem; line-height:1.1; }
+    .tabbar a.active { color:var(--navy); background:var(--head); }
+    #installbar { bottom:calc(72px + env(safe-area-inset-bottom)); }
+  }
 </style>
 </head>
 <body>
@@ -70,6 +82,7 @@
 <div class="card" style="padding:0"><table><thead><tr><th>Jour</th><th>Mesuré</th><th>Prévu</th><th>Écart</th><th>SPINE</th><th>Écart SPINE</th></tr></thead><tbody id="rows"></tbody></table></div>
 <p class="note"><strong>Comment c'est calculé :</strong> pour chaque jour, « prévu » est la prévision que le modèle émettait <em>k</em> jours plus tôt, avec les seules données disponibles ce jour-là (rejeu, sans l'ajustement intrajournalier). Depuis le 9 novembre 2026, la prévision SPINE archivée le même jour est comparée elle aussi, et le rejeu utilise le modèle v3 dès que ses variables supplémentaires (Hull, Lanoraie, Richelieu, Varennes, CMI, heures 12–18 h) sont archivées. La période 2019–2024 a servi à calibrer le modèle (comparaison partiellement optimiste) ; 2025 et le direct sont indépendants. Vert : écart dans la tolérance choisie ; orange : jusqu’au double ; rouge : au-delà.</p>
 </main>
+<nav class="tabbar"><a href="./"><span class="ti">🌊</span>Prévisions</a><a href="validation.html" class="active"><span class="ti">📈</span>Validation</a><a href="journal.html"><span class="ti">📓</span>Journal</a></nav>
 <footer>Données : Service hydrographique du Canada et ECCC (Licence du gouvernement ouvert – Canada). Outil indicatif, sans garantie.</footer>
 <script>
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
