@@ -361,6 +361,32 @@ def main():
             json.dump({"generated": dt.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"), "days": vdays}, f, separators=(",", ":"))
     except Exception as e:
         print("validation.json impossible :", e)
+    # ------------------------------------------------------------------ archive des débits aux centrales d'Hydro-Québec
+    # Débit total horaire (turbiné + déversé) à Carillon, Beauharnois, Les Cèdres, etc. Données ouvertes d'Hydro-Québec
+    # (CC BY-NC 4.0), historique offert : 10 jours seulement → on archive pour pouvoir tester plus tard si ces débits,
+    # mesurés à la source 3 à 6 h avant que les niveaux amont ne réagissent, améliorent J+1 et J+2. Non utilisé par le modèle.
+    try:
+        import requests
+        HQ = os.path.join(DOCS, "hq_hourly.csv")
+        url = "https://donnees.hydroquebec.com/api/explore/v2.1/catalog/datasets/donnees-hydrometriques/exports/json"
+        rows = requests.get(url, timeout=60, params={"where": 'depil_json_type_point_donnee="Débit total" and depil_json_pas_temps="Horaire" and ycoord<46.6 and xcoord<-73.3 and xcoord>-78',
+                                                     "select": "nom,split_date,split_value"}).json()
+        arch = {}
+        if os.path.exists(HQ):
+            with open(HQ, newline="", encoding="utf-8") as f:
+                for r in csv.DictReader(f): arch[r["time_utc"]] = {k: v for k, v in r.items() if k != "time_utc"}
+        for r in rows:
+            try:
+                t = r["split_date"].replace("/", "-")[:13] + ":00Z"; arch.setdefault(t, {})[r["nom"]] = f"{float(r['split_value']):.1f}"
+            except (KeyError, TypeError, ValueError):
+                pass
+        lim = (dt.datetime.utcnow() - dt.timedelta(days=400)).strftime("%Y-%m-%dT%H:00Z")
+        arch = {t: v for t, v in arch.items() if t >= lim}; cols = sorted({k for v in arch.values() for k in v})
+        with open(HQ, "w", newline="", encoding="utf-8") as f:
+            w = csv.writer(f); w.writerow(["time_utc"] + cols); [w.writerow([t] + [arch[t].get(c, "") for c in cols]) for t in sorted(arch)]
+        print("archive Hydro-Québec :", len(arch), "heures,", len(cols), "installations")
+    except Exception as e:
+        print("archive Hydro-Québec impossible :", e)
     # ------------------------------------------------------------------ combinaison automatique modèle + SPINE
     # Pour chaque échéance k (jours entre l'émission, en heure locale, et la date visée), on relit les archives et on
     # ajuste obs ≈ a + w·modèle + (1−w)·SPINE sur les couples où le niveau réel est connu. Dès 30 couples, la prévision
