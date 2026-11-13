@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Version d'onglet de icon.svg : moins de graduations, traits plus épais, calés sur la grille de 16 px. -->
+  <rect width="32" height="32" rx="7" fill="#111315"/>
+  <rect x="6" y="6" width="2" height="20" fill="#7f858d"/>
+  <rect x="8" y="6" width="6" height="2" fill="#a4a9b0"/>
+  <rect x="8" y="24" width="6" height="2" fill="#a4a9b0"/>
+  <path d="M8 21H12.5C16 21 16.5 11 20.5 11C24 11 24.5 17 27.5 17" fill="none" stroke="#eceef0" stroke-width="3" stroke-linecap="round"/>
+  <rect x="2" y="10" width="4" height="2" fill="#f5a04e"/>
+</svg>
