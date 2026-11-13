@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#f4f5f6" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#111315" media="(prefers-color-scheme: dark)">
@@ -113,7 +113,7 @@
   td.n { font-family:var(--mono); font-variant-numeric:tabular-nums; color:var(--text-2); }
   td.ok { color:var(--pos); font-weight:500; } td.bad { color:var(--neg); font-weight:500; }
   tbody tr { transition:background-color .15s var(--ease); }
-  tbody tr:hover { background:var(--raised); }
+  @media (hover: hover) { tbody tr:hover { background:var(--raised); } }   /* pas de survol qui reste collé après un toucher */
 
   /* méthode */
   .about { margin-top:16px; padding-top:24px; border-top:1px solid var(--line); }
@@ -124,30 +124,38 @@
   footer { max-width:1200px; margin:0 auto; padding:24px 32px 40px; border-top:1px solid var(--line); font-size:.8125rem; line-height:1.25rem; color:var(--text-3); }
   footer p { max-width:96ch; }
 
+  /* encoche et coins arrondis (téléphone tenu à l'horizontale) : le contenu reste dans la zone sûre */
+  .hwrap, main, footer { padding-left:max(32px, env(safe-area-inset-left)); padding-right:max(32px, env(safe-area-inset-right)); }
+
   .tabbar { display:none; }
 
   @media (max-width: 640px) {
-    .hwrap { min-height:56px; padding:8px 16px; } .topnav { display:none; }
-    main { padding:16px 16px 24px; gap:12px; }
+    .hwrap { min-height:56px; padding-top:8px; padding-bottom:8px; } .topnav { display:none; }
+    main { padding-top:16px; padding-bottom:24px; gap:12px; }
+    footer { padding-top:24px; padding-bottom:32px; }
+    .hwrap, main, footer { padding-left:max(16px, env(safe-area-inset-left)); padding-right:max(16px, env(safe-area-inset-right)); }
+    /* réglages : deux par ligne ; le script pose des libellés d'options courts pour qu'ils tiennent sans être coupés */
     .ctl { padding:12px 16px 16px; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:12px; }
     input, select { height:44px; font-size:16px; }   /* 16px évite le zoom automatique sur iPhone */
+    select { padding-left:10px; padding-right:28px; background-position:right 8px center; text-overflow:ellipsis; }
     .stats, .stats[data-n] { grid-template-columns:repeat(2, minmax(0, 1fr)); } .stats[data-n="0"] { grid-template-columns:1fr; }
+    .stat { padding:12px 16px; } .stat .value { margin:2px 0; }
     .chart { padding:16px 12px 12px 16px; } .chead { margin-bottom:12px; } .ctitle .sub { display:block; margin:0; }
     .plot-main { height:280px; } .plot-hist { height:200px; }
     .tbl .chead { padding:16px 16px 12px; }
     table { font-size:.8125rem; }
-    th, td { padding:0 8px; } th:first-child, td:first-child { padding-left:16px; } th:last-child, td:last-child { padding-right:16px; }
+    th, td { height:36px; padding:0 8px; } th:first-child, td:first-child { padding-left:16px; } th:last-child, td:last-child { padding-right:16px; }
     th { height:auto; padding-top:8px; padding-bottom:8px; white-space:normal; vertical-align:bottom; }
     th:nth-child(5), td:nth-child(5), th:nth-child(6), td:nth-child(6) { display:none; }
     th:nth-child(4), td:nth-child(4) { padding-right:16px; }
-    footer { padding:24px 16px 32px; }
-    @media (max-width: 480px) { .ctl { grid-template-columns:1fr; } }
     /* barre d'onglets en bas (mobile) */
-    body { padding-bottom:calc(72px + env(safe-area-inset-bottom)); }
-    .tabbar { display:flex; gap:4px; position:fixed; left:0; right:0; bottom:0; z-index:40; background:var(--card); border-top:1px solid var(--line); padding:8px 8px calc(8px + env(safe-area-inset-bottom)); }
-    .tabbar a { flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; padding:8px 4px; border-radius:8px; color:var(--text-3); font-size:.75rem; line-height:1rem; font-weight:500; text-decoration:none; transition:background-color .15s var(--ease), color .15s var(--ease); }
-    .tabbar a[aria-current] { color:var(--text); background:var(--raised); }
+    body { padding-bottom:calc(57px + env(safe-area-inset-bottom)); }
+    .tabbar { display:flex; gap:4px; position:fixed; left:0; right:0; bottom:0; z-index:40; background:var(--card); border-top:1px solid var(--line); padding:4px max(8px, env(safe-area-inset-right)) calc(4px + env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left)); }
+    .tabbar a { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; min-height:48px; padding:4px; border-radius:8px; color:var(--text-3); font-size:.75rem; line-height:1rem; font-weight:500; text-decoration:none; -webkit-tap-highlight-color:transparent; transition:background-color .15s var(--ease), color .15s var(--ease); }
+    .tabbar a[aria-current], .tabbar a:active { color:var(--text); background:var(--raised); }
   }
+  @media (max-width: 340px) { .ctl { grid-template-columns:minmax(0, 1fr); } }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration:.01ms !important; } }
 </style>
 </head>
 <body>
@@ -159,10 +167,10 @@
 </header>
 <main>
   <section class="panel ctl" aria-label="Réglages">
-    <div><label for="selK">Échéance</label><select id="selK"><option value="1">J+1 (lendemain)</option><option value="2">J+2</option><option value="3">J+3</option><option value="4">J+4</option><option value="5">J+5</option><option value="6">J+6</option><option value="7">J+7</option></select></div>
-    <div><label for="selP">Période</label><select id="selP"><option value="30">30 derniers jours</option><option value="90" selected>90 derniers jours</option><option value="365">1 an</option><option value="0">Tout (depuis 2019)</option></select></div>
-    <div><label for="selTol">Tolérance (cm)</label><input id="selTol" type="number" min="1" max="50" step="1" value="5"></div>
-    <div><label for="selIce">Glace</label><select id="selIce"><option value="free" selected>Hors glace seulement</option><option value="all">Tous les jours</option><option value="ice">Glace seulement</option></select></div>
+    <div><label for="selK">Échéance</label><select id="selK"><option value="1" data-m="J+1">J+1 (lendemain)</option><option value="2">J+2</option><option value="3">J+3</option><option value="4">J+4</option><option value="5">J+5</option><option value="6">J+6</option><option value="7">J+7</option></select></div>
+    <div><label for="selP">Période</label><select id="selP"><option value="30" data-m="30 jours">30 derniers jours</option><option value="90" data-m="90 jours" selected>90 derniers jours</option><option value="365">1 an</option><option value="0" data-m="Depuis 2019">Tout (depuis 2019)</option></select></div>
+    <div><label for="selTol">Tolérance (cm)</label><input id="selTol" type="number" inputmode="numeric" min="1" max="50" step="1" value="5"></div>
+    <div><label for="selIce">Glace</label><select id="selIce"><option value="free" data-m="Hors glace" selected>Hors glace seulement</option><option value="all">Tous les jours</option><option value="ice" data-m="Glace seule">Glace seulement</option></select></div>
   </section>
 
   <section class="stats" id="stats" data-n="0"></section>
@@ -206,6 +214,7 @@ const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).
 const C_TXT = css('--text'), C_TXT2 = css('--text-2'), C_MUTED = css('--text-3'), C_FC = css('--fc'), C_GRID = css('--grid'), C_TICK = css('--tick'), C_LINE = css('--line'), C_RAISED = css('--raised'), C_POS = css('--pos'), C_NEG = css('--neg');
 const SANS = css('--sans'), MONO = css('--mono');
 const MOB = window.matchMedia('(max-width: 640px)').matches;
+if (MOB) document.querySelectorAll('option[data-m]').forEach(o => { o.textContent = o.dataset.m; });   // téléphone : libellés courts, pour tenir à deux réglages par ligne
 Chart.defaults.font.family = SANS; Chart.defaults.font.size = MOB ? 11 : 12;
 Chart.defaults.color = C_MUTED; Chart.defaults.borderColor = C_GRID; Chart.defaults.animation = false;
 Object.assign(Chart.defaults.plugins.tooltip, { backgroundColor: C_RAISED, titleColor: C_TXT, bodyColor: C_TXT2, borderColor: C_LINE, borderWidth: 1, padding: 12, cornerRadius: 8, usePointStyle: true, boxWidth: 8, boxHeight: 8, boxPadding: 4, titleFont: { weight: 500 }, bodyFont: { family: MONO, size: 12 } });
