@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#f4f5f6" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#111315" media="(prefers-color-scheme: dark)">
@@ -110,7 +110,9 @@
   .ask-in h2 { margin-bottom:16px; }
   .ask-out { padding:20px 24px 24px; min-width:0; }
   details.tol { margin-top:16px; }
-  summary { width:fit-content; cursor:pointer; font-weight:500; color:var(--text-2); transition:color .15s var(--ease); }
+  summary { display:flex; align-items:center; gap:4px; width:fit-content; list-style:none; cursor:pointer; font-weight:500; color:var(--text-2); -webkit-tap-highlight-color:transparent; transition:color .15s var(--ease); }
+  summary::-webkit-details-marker { display:none; }
+  summary .chev { transition:transform .2s var(--ease); } details[open] > summary .chev { transform:rotate(180deg); }
   summary:hover { color:var(--text); }
   details.tol .grid { margin-top:12px; } details.tol .hint { margin-top:8px; }
   .verdict { font-size:1.5rem; line-height:2rem; font-weight:500; margin:4px 0; text-wrap:balance; }
@@ -130,7 +132,7 @@
   .kv { display:flex; align-items:baseline; justify-content:space-between; gap:16px; padding:8px 0; border-top:1px solid var(--line); }
   .kv:first-child { border-top:0; }
   .kv span { color:var(--text-2); }
-  .kv b { font-family:var(--mono); font-variant-numeric:tabular-nums; font-weight:500; text-align:right; }
+  .kv b { flex:none; font-family:var(--mono); font-variant-numeric:tabular-nums; font-weight:500; text-align:right; white-space:nowrap; }
   .kv small { display:block; font:400 .8125rem/1.25rem var(--sans); color:var(--text-3); }
 
   /* sessions */
@@ -145,11 +147,12 @@
   td.head { white-space:nowrap; }
   th.num, td.num { text-align:right; white-space:nowrap; } th.num { font-family:var(--sans); }
   td .bdf { font-family:var(--sans); color:var(--text-3); }
+  .mu { display:none; }   /* unités dans la fiche mobile ; sur grand écran, l'en-tête de colonne les porte */
   td.btns { padding-top:8px; padding-bottom:8px; text-align:right; white-space:nowrap; }
   .confirm-box { display:flex; flex-wrap:wrap; justify-content:flex-end; align-items:center; gap:8px; }
   .confirm-q { flex-basis:100%; font-size:.8125rem; color:var(--text-2); }
   tbody tr { transition:background-color .15s var(--ease); }
-  tbody tr:hover { background:var(--soft); }
+  @media (hover: hover) { tbody tr:hover { background:var(--soft); } }   /* pas de survol qui reste collé après un toucher */
   @media (min-width: 641px) { .head-meta { display:none; } }
   #shapesBox { margin-top:16px; max-width:480px; }
 
@@ -164,6 +167,9 @@
   #installbar .no { background:transparent; color:var(--text-2); }
   #installbar .no:hover { background:var(--raised); color:var(--text); }
 
+  /* encoche et coins arrondis (téléphone tenu à l'horizontale) : le contenu reste dans la zone sûre */
+  .hwrap, main, footer { padding-left:max(32px, env(safe-area-inset-left)); padding-right:max(32px, env(safe-area-inset-right)); }
+
   .tabbar { display:none; }
 
   @media (max-width: 900px) {
@@ -171,35 +177,44 @@
     .ask-in { border-right:0; border-bottom:1px solid var(--line); }
   }
   @media (max-width: 640px) {
-    .hwrap { min-height:56px; padding:8px 16px; } .topnav { display:none; }
-    main { padding:16px 16px 24px; gap:12px; } #app, .duo { gap:12px; }
+    .hwrap { min-height:56px; padding-top:8px; padding-bottom:8px; } .topnav { display:none; }
+    main { padding-top:16px; padding-bottom:24px; gap:12px; } #app, .duo { gap:12px; }
+    footer { padding-top:24px; padding-bottom:32px; }
+    .hwrap, main, footer { padding-left:max(16px, env(safe-area-inset-left)); padding-right:max(16px, env(safe-area-inset-right)); }
     .card, .ask-in, .ask-out { padding:16px 16px 20px; }
     .grid { gap:12px; } .g3 { grid-template-columns:repeat(2, minmax(0, 1fr)); } .g3.nine > :first-child { grid-column:1 / -1; }
+    .setup .g2 { grid-template-columns:minmax(0, 1fr); }
     input, select, textarea { height:44px; font-size:16px; }   /* 16px évite le zoom automatique sur iPhone */
+    select { padding-left:10px; padding-right:28px; background-position:right 8px center; text-overflow:ellipsis; }   /* le script pose aussi des libellés d'options courts */
     textarea { height:auto; }
-    button, .btn { height:44px; } button.sm { height:36px; }
+    button, .btn, button.sm { height:44px; }   /* cibles tactiles de 44 px */
+    .opt { display:none; }   /* précisions entre parenthèses des libellés : la valeur par défaut du champ les dit déjà */
+    details.tol { margin-top:4px; } summary { min-height:44px; } .ask-in .actions { margin-top:8px; }
     .actions { flex-direction:column; } .actions > * { width:100%; }
     .verdict { font-size:1.25rem; line-height:1.75rem; }
     .filters { grid-template-columns:repeat(2, minmax(0, 1fr)); width:100%; }
-    /* tableau des sessions → fiches empilées */
+    /* tableau des sessions → fiches : date et note sur la première ligne, mesures sur la deuxième, comme dans « sessions les plus proches » */
     .tblwrap { margin:0; overflow:visible; }
-    table, tbody, tr, td { display:block; width:100%; } thead { display:none; }
-    tr { padding:12px 0; border-top:1px solid var(--line); }
-    tbody tr:hover { background:none; }
-    td, td:first-child, td:last-child, td.num, td.btns { border:0; padding:2px 0; text-align:left; white-space:normal; } td:empty, td[data-l="Spot"] { display:none; }
+    table, tbody { display:block; width:100%; } thead { display:none; }
+    tr { display:flex; flex-wrap:wrap; align-items:baseline; gap:2px 0; padding:12px 0; border-top:1px solid var(--line); }
+    td, td:first-child, td:last-child, td.num, td.btns { display:block; border:0; padding:0; text-align:left; white-space:normal; } td:empty, td[data-l="Spot"] { display:none; }
+    td.head { order:-2; flex:1 1 calc(100% - 104px); min-width:0; white-space:normal; font-weight:500; } .head-meta { font-weight:400; color:var(--text-2); }
+    td[data-l="Note"] { order:-1; flex:none; margin-left:auto; padding-left:8px; }
+    td.num { flex:none; white-space:nowrap; } td[data-l="Forme"] { flex:0 1 auto; color:var(--text-2); }
+    .mu { display:inline; font-family:var(--sans); color:var(--text-2); }
+    td[data-l="Niveau (m)"]::before, td[data-l="Forme"]::before { content:"\00a0·\00a0"; font-family:var(--sans); color:var(--text-3); }
+    td[data-l="Commentaire"] { flex:1 1 100%; color:var(--text-3); } td[data-l="Commentaire"]::before { content:"« "; } td[data-l="Commentaire"]::after { content:" »"; }
     .near-h .stars { order:1; } .near-meta { order:2; flex-basis:100%; }   /* date et note sur la première ligne, le reste dessous */
-    td[data-l]::before { content:attr(data-l) " : "; font:400 .8125rem var(--sans); color:var(--text-3); }
-    td.head { font-weight:500; } .head-meta { font-weight:400; color:var(--text-2); }
-    td.btns { display:flex; gap:8px; margin-top:8px; } td.btns button { flex:1; }
-    td.btns.confirm { display:block; } .confirm-box { justify-content:flex-start; }
-    footer { padding:24px 16px 32px; }
+    td.btns { flex:1 1 100%; display:flex; gap:8px; margin-top:8px; } td.btns button { flex:1; }
+    td.btns.confirm { display:block; } .confirm-box { justify-content:flex-start; } .confirm-box button { flex:1; }
     /* barre d'onglets en bas (mobile) */
-    body { padding-bottom:calc(72px + env(safe-area-inset-bottom)); }
-    .tabbar { display:flex; gap:4px; position:fixed; left:0; right:0; bottom:0; z-index:40; background:var(--card); border-top:1px solid var(--line); padding:8px 8px calc(8px + env(safe-area-inset-bottom)); }
-    .tabbar a { flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; padding:8px 4px; border-radius:8px; color:var(--text-3); font-size:.75rem; line-height:1rem; font-weight:500; text-decoration:none; transition:background-color .15s var(--ease), color .15s var(--ease); }
-    .tabbar a[aria-current] { color:var(--text); background:var(--raised); }
-    #installbar { bottom:calc(80px + env(safe-area-inset-bottom)); }
+    body { padding-bottom:calc(57px + env(safe-area-inset-bottom)); }
+    .tabbar { display:flex; gap:4px; position:fixed; left:0; right:0; bottom:0; z-index:40; background:var(--card); border-top:1px solid var(--line); padding:4px max(8px, env(safe-area-inset-right)) calc(4px + env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left)); }
+    .tabbar a { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; min-height:48px; padding:4px; border-radius:8px; color:var(--text-3); font-size:.75rem; line-height:1rem; font-weight:500; text-decoration:none; -webkit-tap-highlight-color:transparent; transition:background-color .15s var(--ease), color .15s var(--ease); }
+    .tabbar a[aria-current], .tabbar a:active { color:var(--text); background:var(--raised); }
+    #installbar { bottom:calc(65px + env(safe-area-inset-bottom)); }
   }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration:.01ms !important; scroll-behavior:auto !important; } }
 </style>
 </head>
 <body>
@@ -215,9 +230,9 @@
   <h2>Connexion au journal</h2>
   <p class="lead">Tes sessions sont stockées dans un dépôt GitHub <strong>privé</strong> qui t’appartient. Le jeton reste sur cet appareil (navigateur) et n’est envoyé qu’à GitHub. À faire une fois par appareil.</p>
   <div class="grid g2">
-    <div><label for="cfgOwner">Propriétaire du dépôt (pseudo GitHub)</label><input id="cfgOwner" placeholder="mimomimo15"></div>
-    <div><label for="cfgRepo">Nom du dépôt privé</label><input id="cfgRepo" placeholder="journal-vague"></div>
-    <div class="full"><label for="cfgToken">Jeton d’accès (fine-grained, Contents : read and write)</label><input id="cfgToken" type="password" placeholder="github_pat_…"></div>
+    <div><label for="cfgOwner">Propriétaire du dépôt (pseudo GitHub)</label><input id="cfgOwner" placeholder="mimomimo15" autocapitalize="none" autocorrect="off" spellcheck="false"></div>
+    <div><label for="cfgRepo">Nom du dépôt privé</label><input id="cfgRepo" placeholder="journal-vague" autocapitalize="none" autocorrect="off" spellcheck="false"></div>
+    <div class="full"><label for="cfgToken">Jeton d’accès (fine-grained, Contents : read and write)</label><input id="cfgToken" type="password" placeholder="github_pat_…" autocapitalize="none" autocorrect="off" spellcheck="false"></div>
     <div class="full"><label for="cfgWho">Ton nom (pour savoir qui a noté la session)</label><input id="cfgWho" placeholder="Justin"></div>
   </div>
   <div class="actions"><button id="btnConnect">Se connecter</button><button class="sec" id="btnForget">Oublier ce jeton</button></div>
@@ -230,13 +245,13 @@
   <div class="ask-in">
     <h2>Est-ce que la vague est belle maintenant ?</h2>
     <div class="grid g2">
-      <div><label for="vDebit">Débit du jour (m³/s)</label><input id="vDebit" type="number" step="10"></div>
+      <div><label for="vDebit">Débit du jour (m³/s)</label><input id="vDebit" type="number" inputmode="numeric" step="10"></div>
       <div><label for="vNiveau">Niveau du jour (m)</label><input id="vNiveau" type="number" step="0.01"></div>
-      <div><label for="vSpot">Vague / spot (vide = toutes)</label><select id="vSpot"><option value="">Toutes</option></select></div>
-      <div><label for="vStation">Débit mesuré à</label><select id="vStation"><option value="las">LaSalle (fleuve)</option><option value="bdf">Bois-des-Filion (Mille Îles)</option></select></div>
+      <div><label for="vSpot">Vague / spot<span class="opt"> (vide = toutes)</span></label><select id="vSpot"><option value="">Toutes</option></select></div>
+      <div><label for="vStation">Débit mesuré à</label><select id="vStation"><option value="las" data-m="LaSalle">LaSalle (fleuve)</option><option value="bdf" data-m="Bois-des-Filion">Bois-des-Filion (Mille Îles)</option></select></div>
     </div>
-    <details class="tol"><summary>Tolérances</summary>
-      <div class="grid g2"><div><label for="vTolQ">Débit ± (m³/s)</label><input id="vTolQ" type="number" step="10" value="150"></div><div><label for="vTolN">Niveau ± (m)</label><input id="vTolN" type="number" step="0.01" value="0.05"></div></div>
+    <details class="tol"><summary>Tolérances<svg class="ic chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary>
+      <div class="grid g2"><div><label for="vTolQ">Débit ± (m³/s)</label><input id="vTolQ" type="number" inputmode="numeric" step="10" value="150"></div><div><label for="vTolN">Niveau ± (m)</label><input id="vTolN" type="number" inputmode="decimal" step="0.01" value="0.05"></div></div>
       <p class="hint">Une session compte comme « semblable » si son débit et son niveau sont dans ces marges. Laisse « Niveau ± » vide pour comparer seulement le débit.</p>
     </details>
     <div class="actions"><button class="sec" id="btnLive">Reprendre les conditions en direct</button></div>
@@ -252,7 +267,7 @@
 <div class="duo">
   <section class="panel card">
     <h2>Ta plage idéale</h2>
-    <div class="grid g2"><div class="full"><label for="pMin">Note minimale d’une « bonne » session</label><input id="pMin" type="number" min="1" max="5" value="4"></div><div><label for="pSpot">Vague / spot (vide = toutes)</label><select id="pSpot"><option value="">Toutes</option></select></div><div><label for="pStation">Débit mesuré à</label><select id="pStation"><option value="las">LaSalle (fleuve)</option><option value="bdf">Bois-des-Filion (Mille Îles)</option></select></div></div>
+    <div class="grid g2"><div class="full"><label for="pMin">Note minimale d’une « bonne » session</label><input id="pMin" type="number" inputmode="numeric" min="1" max="5" value="4"></div><div><label for="pSpot">Vague / spot<span class="opt"> (vide = toutes)</span></label><select id="pSpot"><option value="">Toutes</option></select></div><div><label for="pStation">Débit mesuré à</label><select id="pStation"><option value="las" data-m="LaSalle">LaSalle (fleuve)</option><option value="bdf" data-m="Bois-des-Filion">Bois-des-Filion (Mille Îles)</option></select></div></div>
     <div id="plage"></div>
     <p class="hint">Sur la page principale, le niveau et les débits en direct s’affichent en vert quand ils sont dans la plage des bonnes sessions (élargie des tolérances ci-dessus), et en rouge sinon : la carte « Débit en direct à LaSalle » suit les sessions notées avec le débit LaSalle, la carte « Débit des Mille Îles à Bois-des-Filion » celles notées avec le débit Bois-des-Filion.</p>
   </section>
@@ -262,8 +277,8 @@
     <div class="grid g3 nine">
       <div><label for="fDate">Date</label><input id="fDate" type="date"></div>
       <div><label for="fSpot">Vague / spot</label><input id="fSpot" list="spotList" placeholder="H67"><datalist id="spotList"></datalist></div>
-      <div><label for="fDebit">Débit (m³/s)</label><input id="fDebit" type="number" step="10"></div>
-      <div><label for="fStation">Débit mesuré à</label><select id="fStation"><option value="las">LaSalle (fleuve)</option><option value="bdf">Bois-des-Filion (Mille Îles)</option></select></div>
+      <div><label for="fDebit">Débit (m³/s)</label><input id="fDebit" type="number" inputmode="numeric" step="10"></div>
+      <div><label for="fStation">Débit mesuré à</label><select id="fStation"><option value="las" data-m="LaSalle">LaSalle (fleuve)</option><option value="bdf" data-m="Bois-des-Filion">Bois-des-Filion (Mille Îles)</option></select></div>
       <div><label for="fNiveau">Niveau (m)</label><input id="fNiveau" type="number" step="0.01"></div>
       <div><label for="fNote">Note (1 à 5)</label><select id="fNote"><option value="">–</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select></div>
       <div><label for="fWho">Qui</label><input id="fWho" placeholder="Ton nom"></div>
@@ -303,6 +318,7 @@
 </footer>
 <script>
 const $ = id => document.getElementById(id);
+if (window.matchMedia('(max-width: 640px)').matches) document.querySelectorAll('option[data-m]').forEach(o => { o.textContent = o.dataset.m; });   // téléphone : libellés d'options courts, pour tenir à deux champs par ligne
 const LS = { get: k => { try { return localStorage.getItem('jv_' + k) || ''; } catch (e) { return ''; } }, set: (k, v) => { try { localStorage.setItem('jv_' + k, v); } catch (e) {} }, del: k => { try { localStorage.removeItem('jv_' + k); } catch (e) {} } };
 const DEFAULT_SHAPES = ['Verte', 'Green', 'Steep', 'Molle', 'Mousseuse', 'Flat'];
 let cfg = { owner: LS.get('owner') || 'mimomimo15', repo: LS.get('repo') || 'journal-vague', token: LS.get('token'), who: LS.get('who') };
@@ -410,7 +426,7 @@ function renderList() {
   const who = $('lWho').value, spot = $('lSpot').value;
   const rows = data.sessions.filter(s => (!who || s.qui === who) && (!spot || s.spot === spot)).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   $('count').textContent = rows.length + ' / ' + data.sessions.length;
-  $('rows').innerHTML = rows.map(s => `<tr><td class="head">${fday(s.date)}<span class="head-meta"> · ${esc(s.spot || '')}${s.qui ? ' · ' + esc(s.qui) : ''}</span></td><td data-l="Spot">${esc(s.spot || '')}</td><td class="num" data-l="Débit (m³/s)">${s.debit != null ? nf(s.debit) + ((s.station || 'las') === 'bdf' ? ' <span class="bdf">BdF</span>' : '') : ''}</td><td class="num" data-l="Niveau (m)">${s.niveau != null ? sgn(s.niveau) : ''}</td><td data-l="Note">${stars(s.note)}</td><td data-l="Forme">${esc(s.forme || '')}${s.forme2 ? ' / ' + esc(s.forme2) : ''}</td><td data-l="Commentaire">${esc(s.commentaire || '')}</td><td class="btns"><button class="sec sm" data-edit="${s.id}">Modifier</button> <button class="sec sm del" data-del="${s.id}">Supprimer</button></td></tr>`).join('');
+  $('rows').innerHTML = rows.map(s => `<tr><td class="head">${fday(s.date)}<span class="head-meta"> · ${esc(s.spot || '')}${s.qui ? ' · ' + esc(s.qui) : ''}</span></td><td data-l="Spot">${esc(s.spot || '')}</td><td class="num" data-l="Débit (m³/s)">${s.debit != null ? nf(s.debit) + '<span class="mu"> m³/s</span>' + ((s.station || 'las') === 'bdf' ? ' <span class="bdf">BdF</span>' : '') : ''}</td><td class="num" data-l="Niveau (m)">${s.niveau != null ? sgn(s.niveau) + '<span class="mu"> m</span>' : ''}</td><td data-l="Note">${stars(s.note)}</td><td data-l="Forme">${esc(s.forme || '')}${s.forme2 ? ' / ' + esc(s.forme2) : ''}</td><td data-l="Commentaire">${esc(s.commentaire || '')}</td><td class="btns"><button class="sec sm" data-edit="${s.id}">Modifier</button> <button class="sec sm del" data-del="${s.id}">Supprimer</button></td></tr>`).join('');
 }
 function refresh() { fillSelects(); renderList(); plage(); verify(); }
 function resetForm() { editing = null; $('fDate').value = new Date().toLocaleDateString('fr-CA'); $('fSpot').value = data.sessions.length ? data.sessions[data.sessions.length - 1].spot || '' : ''; $('fNote').value = ''; $('fForme').value = ''; $('fForme2').value = ''; $('fComment').value = ''; $('fWho').value = cfg.who; $('btnSave').textContent = 'Enregistrer la session'; $('btnCancel').style.display = 'none'; applyLive(); }

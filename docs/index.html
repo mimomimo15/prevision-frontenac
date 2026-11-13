@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#f4f5f6" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#111315" media="(prefers-color-scheme: dark)">
@@ -128,13 +128,16 @@
   td .tag { margin-left:8px; font-size:.8125rem; color:var(--text-3); }
   tbody tr { transition:background-color .15s var(--ease); }
   tbody tr.today { background:var(--soft); }
-  tbody tr:hover { background:var(--raised); }
+  @media (hover: hover) { tbody tr:hover { background:var(--raised); } }   /* pas de survol qui reste collé après un toucher */
+  .t-m { display:none; }
 
   /* méthode */
   .about { margin-top:16px; padding-top:24px; border-top:1px solid var(--line); }
   .about h2 { font-size:1rem; font-weight:500; margin-bottom:16px; }
   .notes { columns:2; column-gap:48px; }
   .note { break-inside:avoid; padding-bottom:24px; }
+  .note summary { list-style:none; } .note summary::-webkit-details-marker { display:none; }
+  .note .chev { display:none; }
   .note h3 { font-size:.875rem; font-weight:500; margin-bottom:4px; }
   .note p { color:var(--text-2); }
   .note strong { font-weight:500; color:var(--text); }
@@ -152,6 +155,9 @@
   #installbar .no { background:transparent; color:var(--text-2); }
   #installbar .no:hover { background:var(--raised); color:var(--text); }
 
+  /* encoche et coins arrondis (téléphone tenu à l'horizontale) : le contenu reste dans la zone sûre */
+  .hwrap, main, footer { padding-left:max(32px, env(safe-area-inset-left)); padding-right:max(32px, env(safe-area-inset-right)); }
+
   .tabbar { display:none; }
 
   @media (max-width: 900px) {
@@ -162,29 +168,55 @@
     .notes { columns:1; }
   }
   @media (max-width: 640px) {
-    .hwrap { min-height:56px; padding:8px 16px; } .topnav { display:none; }
-    main { padding:16px 16px 24px; gap:12px; }
+    .hwrap { min-height:56px; padding-top:8px; padding-bottom:8px; } .topnav { display:none; }
+    main { padding-top:16px; padding-bottom:24px; gap:12px; }
+    footer { padding-top:24px; padding-bottom:32px; }
+    .hwrap, main, footer { padding-left:max(16px, env(safe-area-inset-left)); padding-right:max(16px, env(safe-area-inset-right)); }
     .now-read { padding:16px 16px 20px; } .now-trace { padding:16px 12px 12px 16px; }
     .now .value { font-size:2.75rem; letter-spacing:-.02em; }
-    .stat { padding:16px; } .stat .label { min-height:2.5rem; } .stat.span2 .label, #winCard .label { min-height:0; }
-    .stat .value { font-size:1.5rem; }
+    /* mesures : la prévision de demain garde sa carte ; les autres relevés se lisent en liste, libellé à gauche, chiffre à droite */
+    #winCard { padding:16px; }
+    .stats { grid-template-columns:minmax(0, 1fr); gap:0; }
+    .stats .stat { grid-column:auto; display:grid; grid-template-columns:minmax(0, 1fr) auto; column-gap:16px; align-items:baseline; padding:12px 16px; border-radius:0; box-shadow:none; }
+    .stats .stat > * { grid-column:1 / -1; min-width:0; }
+    .stats .stat > .label { grid-column:1; }
+    .stats .stat > .value { grid-column:2; grid-row:1; margin:0; font-size:1.25rem; line-height:1.5rem; }
+    .stats .stat > .words { margin:4px 0 2px; font-size:1rem; }
+    .stats .stat:first-child { margin-bottom:12px; padding:16px; border-radius:12px; box-shadow:var(--shadow); }
+    .stats .stat:first-child > .value { font-size:1.75rem; line-height:2rem; }
+    .stats .stat:nth-child(2) { border-radius:12px 12px 0 0; }
+    .stats .stat:nth-child(n+3) { border-top:0; }
+    .stats .stat:last-child { border-radius:0 0 12px 12px; }
     .chart { padding:16px 12px 12px 16px; } .chead { margin-bottom:12px; } .ctitle .sub { display:block; margin:0; }
     .plot-day { height:180px; } .plot-main { height:280px; } .plot-cmp { height:220px; }
     table { font-size:.8125rem; }
-    th, td { padding:8px; height:auto; } th { white-space:normal; vertical-align:bottom; }
-    th:first-child, td:first-child { padding-left:16px; } th:last-child, td:last-child { padding-left:12px; padding-right:16px; white-space:normal; }
+    th, td { padding:10px 6px; height:auto; } th { font-size:.75rem; }
+    th:first-child, td:first-child { padding-left:16px; } th:last-child, td:last-child { padding-left:10px; padding-right:16px; white-space:normal; }
     th:nth-child(3), td:nth-child(3), th:nth-child(4), td:nth-child(4) { display:none; }
     td .tag { display:block; margin:0; }
+    .t-d { display:none; } .t-m { display:inline; }   /* en-têtes courts : une seule ligne */
     .tw { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
-    .stat.m-wide { grid-column:span 2; } .stat.m-wide .label { min-height:0; }
-    footer { padding:24px 16px 32px; }
+    /* méthode : une note par ligne, qui se déplie au toucher */
+    .about { margin-top:8px; padding-top:20px; } .about h2 { margin-bottom:12px; }
+    .note { padding:0; border-top:1px solid var(--line); }
+    .note summary { display:flex; align-items:center; justify-content:space-between; gap:16px; min-height:48px; padding:12px 0; cursor:pointer; -webkit-tap-highlight-color:transparent; }
+    .note h3 { margin:0; }
+    .note .chev { display:block; color:var(--text-3); transition:transform .2s var(--ease); }
+    .note[open] .chev { transform:rotate(180deg); }
+    .note p { padding-bottom:16px; font-size:.9375rem; line-height:1.6; }
     /* barre d'onglets en bas (mobile) */
-    body { padding-bottom:calc(72px + env(safe-area-inset-bottom)); }
-    .tabbar { display:flex; gap:4px; position:fixed; left:0; right:0; bottom:0; z-index:40; background:var(--card); border-top:1px solid var(--line); padding:8px 8px calc(8px + env(safe-area-inset-bottom)); }
-    .tabbar a { flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; padding:8px 4px; border-radius:8px; color:var(--text-3); font-size:.75rem; line-height:1rem; font-weight:500; text-decoration:none; transition:background-color .15s var(--ease), color .15s var(--ease); }
-    .tabbar a[aria-current] { color:var(--text); background:var(--raised); }
-    #installbar { bottom:calc(80px + env(safe-area-inset-bottom)); }
+    body { padding-bottom:calc(57px + env(safe-area-inset-bottom)); }
+    .tabbar { display:flex; gap:4px; position:fixed; left:0; right:0; bottom:0; z-index:40; background:var(--card); border-top:1px solid var(--line); padding:4px max(8px, env(safe-area-inset-right)) calc(4px + env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left)); }
+    .tabbar a { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; min-height:48px; padding:4px; border-radius:8px; color:var(--text-3); font-size:.75rem; line-height:1rem; font-weight:500; text-decoration:none; -webkit-tap-highlight-color:transparent; transition:background-color .15s var(--ease), color .15s var(--ease); }
+    .tabbar a[aria-current], .tabbar a:active { color:var(--text); background:var(--raised); }
+    #installbar { bottom:calc(65px + env(safe-area-inset-bottom)); }
   }
+  @media (max-width: 350px) {   /* très petits téléphones (320 px) */
+    .read { gap:8px; } .now .value { font-size:2rem; }
+    table { font-size:.75rem; } th, td { padding-left:3px; padding-right:3px; }
+    th:first-child, td:first-child { padding-left:12px; } th:last-child, td:last-child { padding-left:4px; padding-right:12px; }
+  }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration:.01ms !important; } }
 </style>
 </head>
 <body>
@@ -233,7 +265,7 @@
 
   <div class="panel tbl">
     <table>
-      <thead><tr><th>Jour</th><th>Niveau prévu (m)</th><th>Marge à 90 % (± m)</th><th>Fourchette (m)</th><th>SPINE, SHC (m)</th><th>Tendance du débit</th></tr></thead>
+      <thead><tr><th>Jour</th><th><span class="t-d">Niveau prévu (m)</span><span class="t-m">Prévu (m)</span></th><th>Marge à 90 % (± m)</th><th>Fourchette (m)</th><th><span class="t-d">SPINE, SHC (m)</span><span class="t-m">SPINE (m)</span></th><th><span class="t-d">Tendance du débit</span><span class="t-m">Débit</span></th></tr></thead>
       <tbody id="rows"></tbody>
     </table>
   </div>
@@ -249,15 +281,15 @@
   <section class="about">
     <h2>Méthode et lecture</h2>
     <div class="notes">
-      <div class="note" id="skill" hidden></div>
-      <div class="note" id="method" hidden></div>
-      <div class="note"><h3>Wetsuit</h3><p>Suggestion indicative basée sur une grille classique (eau ≥ 22 °C : lycra ; 18–22 : shorty/3-2 ; 14–18 : 3/2 ; 10–14 : 4/3 + bottes ; 6–10 : 5/4 + bottes, gants, cagoule ; &lt; 6 : 6/5 à cagoule), relevée d’un cran si le ressenti de l’air est sous 10 °C ou le vent au-dessus de 25 km/h. Adapte selon ta tolérance au froid et la durée de session.</p></div>
-      <div class="note"><h3>Tendance du débit</h3><p>Sens de la variation du débit à LaSalle par rapport à aujourd’hui, déduit des niveaux prévus par SPINE à Frontenac et Varennes (la pente entre les deux stations reflète le débit). « Stable » = variation sous ±150 m³/s ; légère 150–400 (≈ 2–5 cm de niveau), marquée 400–800 (≈ 5–10 cm), forte > 800. Un astérisque signale un jour où SPINE manquait.</p></div>
-      <div class="note" id="intranote" hidden></div>
-      <div class="note" id="combonote" hidden></div>
-      <div class="note"><h3>Comment lire</h3><p>La marge indique l’écart à l’intérieur duquel 90 % des journées passées sont tombées (validation 2024–2025). Elle s’élargit avec l’horizon parce que les débits futurs des barrages (lac Ontario, Carillon) ne sont pas connus. Sur le graphique des 7 prochains jours, c’est la bande orangée autour de la prévision. Sur l’échelle graduée à côté du niveau en direct, une graduation vaut 1 cm et le repère orangé situe la prévision de demain par rapport au niveau actuel.</p></div>
-      <div class="note"><h3>Mesuré et prévu</h3><p>Chaque point « prévu » est la prévision pour ce jour émise la veille, avec les seules données connues à ce moment. La courbe SPINE se remplit au fil des jours à partir de l’archive (début 9 novembre 2026). L’écart moyen affiché est la moyenne des écarts absolus modèle / mesure sur la période.</p></div>
-      <div class="note"><h3>SPINE</h3><p>Chaque prévision (SPINE et modèle statistique) est archivée à chaque mise à jour pour mesurer leur précision au fil des semaines. La colonne SPINE du tableau est la prévision hydrodynamique officielle du Service hydrographique du Canada pour la même station : quand les deux convergent, la confiance est élevée ; quand elles divergent, un changement de débit est probablement prévu en amont.</p></div>
+      <details class="note" id="skill" hidden open></details>
+      <details class="note" id="method" hidden open></details>
+      <details class="note" open><summary><h3>Wetsuit</h3><svg class="ic chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><p>Suggestion indicative basée sur une grille classique (eau ≥ 22 °C : lycra ; 18–22 : shorty/3-2 ; 14–18 : 3/2 ; 10–14 : 4/3 + bottes ; 6–10 : 5/4 + bottes, gants, cagoule ; &lt; 6 : 6/5 à cagoule), relevée d’un cran si le ressenti de l’air est sous 10 °C ou le vent au-dessus de 25 km/h. Adapte selon ta tolérance au froid et la durée de session.</p></details>
+      <details class="note" open><summary><h3>Tendance du débit</h3><svg class="ic chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><p>Sens de la variation du débit à LaSalle par rapport à aujourd’hui, déduit des niveaux prévus par SPINE à Frontenac et Varennes (la pente entre les deux stations reflète le débit). « Stable » = variation sous ±150 m³/s ; légère 150–400 (≈ 2–5 cm de niveau), marquée 400–800 (≈ 5–10 cm), forte > 800. Un astérisque signale un jour où SPINE manquait.</p></details>
+      <details class="note" id="intranote" hidden open></details>
+      <details class="note" id="combonote" hidden open></details>
+      <details class="note" open><summary><h3>Comment lire</h3><svg class="ic chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><p>La marge indique l’écart à l’intérieur duquel 90 % des journées passées sont tombées (validation 2024–2025). Elle s’élargit avec l’horizon parce que les débits futurs des barrages (lac Ontario, Carillon) ne sont pas connus. Sur le graphique des 7 prochains jours, c’est la bande orangée autour de la prévision. Sur l’échelle graduée à côté du niveau en direct, une graduation vaut 1 cm et le repère orangé situe la prévision de demain par rapport au niveau actuel.</p></details>
+      <details class="note" open><summary><h3>Mesuré et prévu</h3><svg class="ic chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><p>Chaque point « prévu » est la prévision pour ce jour émise la veille, avec les seules données connues à ce moment. La courbe SPINE se remplit au fil des jours à partir de l’archive (début 9 novembre 2026). L’écart moyen affiché est la moyenne des écarts absolus modèle / mesure sur la période.</p></details>
+      <details class="note" open><summary><h3>SPINE</h3><svg class="ic chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><p>Chaque prévision (SPINE et modèle statistique) est archivée à chaque mise à jour pour mesurer leur précision au fil des semaines. La colonne SPINE du tableau est la prévision hydrodynamique officielle du Service hydrographique du Canada pour la même station : quand les deux convergent, la confiance est élevée ; quand elles divergent, un changement de débit est probablement prévu en amont.</p></details>
     </div>
   </section>
 </main>
@@ -284,12 +316,20 @@ const fmt = v => (v == null ? '–' : sgn(v) + NB + 'm');
 const val = (id, num, unit) => { document.getElementById(id).innerHTML = num + (unit ? '<span class="u">' + unit + '</span>' : ''); };
 const fdate = s => { const d = new Date(s + 'T12:00:00'); return d.toLocaleDateString('fr-CA', { weekday: 'short', day: 'numeric', month: 'short' }); };
 // heure d'une mesure : « à 16 h 20 » aujourd'hui, « mer. 11 nov. à 16 h 20 » sinon
-const fwhen = s => { const d = new Date(s), h = d.toLocaleTimeString('fr-CA', { hour: 'numeric', minute: '2-digit' }); return d.toDateString() === new Date().toDateString() ? 'à ' + h : d.toLocaleDateString('fr-CA', { weekday: 'short', day: 'numeric', month: 'short' }) + ' à ' + h; };
+const hm = d => d.toLocaleTimeString('fr-CA', { hour: 'numeric', minute: '2-digit' }).replace(/\s/g, NB);   // « 16 h 20 » ne se coupe jamais en fin de ligne
+const fwhen = s => { const d = new Date(s), h = hm(d); return d.toDateString() === new Date().toDateString() ? 'à' + NB + h : d.toLocaleDateString('fr-CA', { weekday: 'short', day: 'numeric', month: 'short' }) + ' à' + NB + h; };
 const svg = p => '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">' + p + '</svg>';
 const ARROW = { flat: svg('<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>'), up: svg('<path d="M7 7h10v10"/><path d="M7 17 17 7"/>'), down: svg('<path d="m7 7 10 10"/><path d="M17 7v10H7"/>') };
 // tendance : flèche + mots ; dans le tableau, le mot « hausse / baisse » s'efface à l'écran sur mobile (la flèche le dit) mais reste lu par les lecteurs d'écran
 const trendHTML = (t, compact) => t ? '<span class="trend">' + ARROW[t.dir] + (compact && t.word ? '<span class="tw">' + t.word + ' </span>' + t.amp : t.txt) + '</span>' : '–';
-const note = (id, title, html) => { const el = document.getElementById(id); el.innerHTML = '<h3>' + title + '</h3><p>' + html.charAt(0).toUpperCase() + html.slice(1) + '</p>'; el.hidden = false; };
+// notes de méthode : sur téléphone, une ligne par note qui se déplie au toucher ; sur grand écran, tout reste ouvert et rien n'est cliquable
+const CHEV = '<svg class="ic chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
+const NOTES_MQ = window.matchMedia('(max-width: 640px)');
+const tabNotes = () => document.querySelectorAll('details.note > summary').forEach(s => { s.tabIndex = NOTES_MQ.matches ? 0 : -1; });
+const syncNotes = () => { document.querySelectorAll('details.note').forEach(d => { d.open = !NOTES_MQ.matches; }); tabNotes(); };
+syncNotes(); NOTES_MQ.addEventListener('change', syncNotes);
+document.querySelector('.notes').addEventListener('click', e => { if (!NOTES_MQ.matches && e.target.closest('summary')) e.preventDefault(); });
+const note = (id, title, html) => { const el = document.getElementById(id); el.innerHTML = '<summary><h3>' + title + '</h3>' + CHEV + '</summary><p>' + html.charAt(0).toUpperCase() + html.slice(1) + '</p>'; el.hidden = false; tabNotes(); };
 // ---- lever / coucher du soleil (NOAA, précision ~1 min), heure locale de l'appareil
 function sunTimes(date, lat, lon) {
   const rad = Math.PI / 180, noon = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12);   // midi local du jour demandé
@@ -298,9 +338,9 @@ function sunTimes(date, lat, lon) {
   const L = (M + C + 180 + 102.9372) % 360, Jt = 2451545 + Js + 0.0053 * Math.sin(M * rad) - 0.0069 * Math.sin(2 * L * rad);
   const dec = Math.asin(Math.sin(L * rad) * Math.sin(23.4397 * rad));
   const w = Math.acos((Math.sin(-0.833 * rad) - Math.sin(lat * rad) * Math.sin(dec)) / (Math.cos(lat * rad) * Math.cos(dec)));
-  const toDate = jd => new Date((jd - 2440587.5) * 864e5), f = x => x.toLocaleTimeString('fr-CA', { hour: 'numeric', minute: '2-digit' });
+  const toDate = jd => new Date((jd - 2440587.5) * 864e5);
   const rise = toDate(Jt - w / (2 * Math.PI)), set = toDate(Jt + w / (2 * Math.PI)), mins = Math.round((set - rise) / 60000);
-  return { rise: f(rise), set: f(set), len: Math.floor(mins / 60) + ' h ' + String(mins % 60).padStart(2, '0') };
+  return { rise: hm(rise), set: hm(set), len: Math.floor(mins / 60) + NB + 'h' + NB + String(mins % 60).padStart(2, '0') };
 }
 // ---- Plage idéale (réservée aux personnes connectées au journal privé : jeton dans ce navigateur)
 let plage = null, liveLevel = null, liveQ = null, liveBdf = null, SPINE_H = null, FC1 = null;
@@ -349,7 +389,7 @@ function idealWindow() {
   const now = Date.now(), days = {};
   for (const p of SPINE_H) { const t = new Date(p.t).getTime(); if (t < now - 3600e3) continue; const dstr = new Date(t).toLocaleDateString('fr-CA'); (days[dstr] = days[dstr] || []).push({ t, ok: p.v >= plage.nmin && p.v <= plage.nmax, v: p.v }); }
   const todayStr = new Date().toLocaleDateString('fr-CA'), tomorrowStr = new Date(now + 864e5).toLocaleDateString('fr-CA');
-  const hh = t => new Date(t).getHours() + ' h';
+  const hh = t => new Date(t).getHours() + NB + 'h';
   const ranges = pts => { const out = []; let cur = null; for (const p of pts) { if (p.ok) { if (!cur) cur = { a: p.t, b: p.t }; else cur.b = p.t; } else if (cur) { out.push(cur); cur = null; } } if (cur) out.push(cur); return out; };
   const line = (label, pts) => { if (!pts || !pts.length) return ''; const r = ranges(pts); const txt = r.length ? r.map(x => x.a === x.b ? 'vers ' + hh(x.a) : 'de ' + hh(x.a) + ' à ' + hh(x.b + 3600e3)).join(', ') : (pts.every(p => p.v > plage.nmax) ? 'trop haut toute la période' : pts.every(p => p.v < plage.nmin) ? 'trop bas toute la période' : 'hors plage'); return `<div><strong>${label}</strong> : <span class="${r.length ? 'ideal-tag' : 'bad-tag'}">${txt}</span></div>`; };
   const html = line('Aujourd’hui (reste de la journée)', days[todayStr]) + line('Demain', days[tomorrowStr]);
@@ -413,7 +453,7 @@ fetch('data.json?t=' + Date.now()).then(r => r.json()).then(d => {
   const todayStr = new Date().toLocaleDateString('fr-CA'), tomorrowStr = new Date(Date.now() + 864e5).toLocaleDateString('fr-CA');
   const fTom = f.find(x => x.date === tomorrowStr) || f[0];
   val('fc1', sgn(fTom.level), 'm');
-  document.getElementById('fc1m').textContent = '± ' + dec(fTom.margin) + ' m · ' + fdate(fTom.date) + (d.intraday ? ` · ajustée à ${d.intraday.hour} h avec le niveau mesuré aujourd’hui` : '');
+  document.getElementById('fc1m').textContent = '±' + NB + dec(fTom.margin) + NB + 'm · ' + fdate(fTom.date) + (d.intraday ? ` · ajustée à ${d.intraday.hour} h avec le niveau mesuré aujourd’hui` : '');
   FC1 = fTom; drawGauge();
   const qf = d.q_forecast || []; const qmap = Object.fromEntries(qf.map(q => [q.date, q]));
   const q0 = d.q_anchor_day;
@@ -547,11 +587,13 @@ fetch('data.json?t=' + Date.now()).then(r => r.json()).then(d => {
                                 label: c => c.dataset.label + ' : ' + fmt(c.parsed.y) } } } }
   });
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => location.reload());
-}).catch(e => { const el = document.getElementById('method'); el.hidden = false; el.textContent = 'Données indisponibles : ' + e; });
+}).catch(e => { note('method', 'Données indisponibles', ''); const el = document.getElementById('method'); el.querySelector('p').textContent = String(e); el.open = true; });
 </script>
 <script>
 // ---- application installable (PWA)
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+// sur téléphone, l'app reste ouverte en arrière-plan : au retour après plus de 10 minutes, on recharge pour repartir des dernières mesures
+if (window.matchMedia('(pointer: coarse)').matches) { let away = 0; document.addEventListener('visibilitychange', () => { if (document.hidden) away = Date.now(); else if (away && Date.now() - away > 10 * 60e3) location.reload(); }); }
 (function () {
   const bar = document.getElementById('installbar'), txt = document.getElementById('installtxt'), go = document.getElementById('installgo'), no = document.getElementById('installno');
   const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
