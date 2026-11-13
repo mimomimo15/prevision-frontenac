@@ -89,8 +89,10 @@
   textarea { height:auto; min-height:80px; padding:8px 12px; resize:vertical; display:block; }
   select { padding-right:36px; background-image:var(--chev); background-repeat:no-repeat; background-position:right 12px center; background-size:16px; }
   input[type=number] { font-family:var(--mono); font-variant-numeric:tabular-nums; }
-  input[type=date] { display:block; }
-  input::-webkit-date-and-time-value { text-align:left; }
+  /* champ date : sur iPhone, Safari pose la date dans un bloc interne, en haut du champ. Le remplissage vertical laisse
+     exactement la hauteur d'une ligne, donc la date est centrée comme le texte des autres champs, alignée à gauche. */
+  input[type=date] { display:flex; align-items:center; min-width:0; line-height:1.5; padding-top:calc((38px - 1.5em) / 2); padding-bottom:calc((38px - 1.5em) / 2); }
+  input::-webkit-date-and-time-value { flex:1; margin:0; text-align:left; }
   button, .btn { display:inline-flex; align-items:center; justify-content:center; height:40px; padding:0 16px; margin:0; border:1px solid transparent; border-radius:8px; background:var(--text); color:var(--bg); font-size:.875rem; line-height:1.25rem; font-weight:500; white-space:nowrap; cursor:pointer; transition:background-color .15s var(--ease), border-color .15s var(--ease), color .15s var(--ease), transform .15s var(--ease); }
   button:hover { background:var(--btn-hover); }
   button:active, .btn:active { transform:scale(.98); }
@@ -189,6 +191,7 @@
     .grid { gap:12px; } .g3 { grid-template-columns:repeat(2, minmax(0, 1fr)); } .g3.nine > :first-child { grid-column:1 / -1; }
     .setup .g2 { grid-template-columns:minmax(0, 1fr); }
     input, select, textarea { height:44px; font-size:16px; }   /* 16px évite le zoom automatique sur iPhone */
+    input[type=date] { padding-top:calc((42px - 1.5em) / 2); padding-bottom:calc((42px - 1.5em) / 2); }   /* même centrage, pour un champ de 44 px */
     select { padding-left:10px; padding-right:28px; background-position:right 8px center; text-overflow:ellipsis; }   /* le script pose aussi des libellés d'options courts */
     textarea { height:auto; }
     button, .btn, button.sm { height:44px; }   /* cibles tactiles de 44 px */
