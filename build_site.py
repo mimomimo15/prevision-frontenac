@@ -33,6 +33,44 @@ def save_hist(rows):
             r = rows[d]; w.writerow([d.isoformat()] + ["" if r[k] is None else f"{r[k]:.3f}" if k != "lasalle_q" else f"{r[k]:.1f}" for k in FIELDS[1:]])
 
 
+AIR_KEEP_H = 3   # au-delà de 3 heures, une vieille météo ne vaut plus rien pour la wetsuit : le site affiche « indisponible »
+
+
+def fetch_air(tries=3):
+    """Météo en direct à Montréal (Open-Meteo, licence CC BY 4.0) : température de l'air, ressenti, vent.
+    L'appel échoue parfois depuis les serveurs de GitHub : on réessaie, puis on reprend la dernière météo connue
+    de docs/data.json tant qu'elle a moins de AIR_KEEP_H heures (son heure de mesure reste affichée sur le site)."""
+    import time
+    err = None
+    for i in range(tries):
+        try:
+            import requests
+            r = requests.get("https://api.open-meteo.com/v1/forecast", timeout=30, params={"latitude": 45.529, "longitude": -73.543, "current": "temperature_2m,apparent_temperature,wind_speed_10m,wind_gusts_10m,wind_direction_10m", "timezone": "America/Toronto"})
+            j = r.json()
+            if "current" not in j:   # refus de la source (trop de requêtes, etc.) : le motif va dans le journal
+                raise RuntimeError(f"HTTP {r.status_code} : {str(j.get('reason', j))[:160]}")
+            j = j["current"]
+            return {"time": j["time"], "temp": j["temperature_2m"], "feels": j["apparent_temperature"], "wind": j["wind_speed_10m"], "gust": j["wind_gusts_10m"], "dir": j["wind_direction_10m"],
+                    "fetched": dt.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")}
+        except Exception as e:
+            err = e
+            print(f"météo : essai {i + 1}/{tries} manqué :", e)
+            if i < tries - 1:
+                time.sleep(5 * 4 ** i)   # 5 s, puis 20 s
+    try:
+        with open(os.path.join(DOCS, "data.json"), encoding="utf-8") as f:
+            prev = json.load(f).get("air")
+        if prev and prev.get("fetched"):
+            age = dt.datetime.utcnow() - dt.datetime.strptime(prev["fetched"], "%Y-%m-%dT%H:%M:%SZ")
+            if dt.timedelta(0) <= age <= dt.timedelta(hours=AIR_KEEP_H):
+                print(f"météo indisponible : dernière valeur connue conservée (mesure de {prev['time']})")
+                return prev
+    except Exception as e:
+        print("météo : dernière valeur connue illisible :", e)
+    print("météo indisponible :", err)
+    return None
+
+
 def main():
     now = dt.datetime.utcnow() + pf.TZ
     hist = load_hist()
@@ -468,13 +506,7 @@ def main():
     except Exception as e:
         print("débit lac Ontario (CMI) indisponible :", e)
     # météo en direct à Montréal (Open-Meteo, licence CC BY 4.0) : température de l'air, ressenti, vent
-    air = None
-    try:
-        import requests
-        j = requests.get("https://api.open-meteo.com/v1/forecast", timeout=30, params={"latitude": 45.529, "longitude": -73.543, "current": "temperature_2m,apparent_temperature,wind_speed_10m,wind_gusts_10m,wind_direction_10m", "timezone": "America/Toronto"}).json()["current"]
-        air = {"time": j["time"], "temp": j["temperature_2m"], "feels": j["apparent_temperature"], "wind": j["wind_speed_10m"], "gust": j["wind_gusts_10m"], "dir": j["wind_direction_10m"]}
-    except Exception as e:
-        print("météo indisponible :", e)
+    air = fetch_air()
     # niveau des 24 dernières heures au pas de 5 minutes (graphique « aujourd'hui »)
     fine = []
     try:
