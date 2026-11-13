@@ -4,139 +4,292 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
-<meta name="theme-color" content="#1F3864" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0e1a33" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f4f5f6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#111315" media="(prefers-color-scheme: dark)">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Niveau fleuve">
 <title>Niveau du fleuve à Montréal (rue Frontenac) – prévision 7 jours</title>
 <meta name="description" content="Prévision statistique du niveau d'eau du Saint-Laurent à Montréal (station rue Frontenac) pour les 7 prochains jours, à partir des stations en amont. Données ouvertes du Service hydrographique du Canada et d'ECCC.">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+<!-- Icônes : Lucide (licence ISC), tracées en ligne. -->
 <style>
-  :root { --green:#1a8f3c; --bad:#C00000; --navy:#1F3864; --red:#D9730D; --grey:#8a8a8a; --bg:#f6f7fa; --card:#ffffff; --text:#1b1b1b; --muted:#666; --head:#e9eef7; --line:#eeeeee; --grid:#e5e5e5; --grid0:#bbbbbb; --obs:#1F3864; --spine:#2E75B6; --warnbg:#fff4d6; color-scheme: light dark; }
+  /* Une seule rampe de gris froids, trois rôles de texte, un accent : l'orangé, réservé à ce qui est prévu. */
+  :root {
+    --bg:#f4f5f6; --card:#ffffff; --raised:#eceef0; --soft:#f7f8f9;
+    --text:#14171a; --text-2:#4d545c; --text-3:#666d75;
+    --line:rgba(20,23,26,.1); --grid:rgba(20,23,26,.07); --tick:rgba(20,23,26,.34);
+    --fc:#d9730d; --fc-ink:#b45309; --fc-band:rgba(217,115,13,.12);
+    --pos:#15803d; --neg:#c62828;
+    --shadow:0 1px 2px rgba(0,0,0,.05); --float:0 8px 24px rgba(0,0,0,.08);
+    --sans:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono:ui-monospace, "SF Mono", SFMono-Regular, "Cascadia Mono", "Roboto Mono", Menlo, Consolas, monospace;
+    --ease:cubic-bezier(.22, 1, .36, 1);
+    color-scheme: light dark;
+  }
   @media (prefers-color-scheme: dark) {
-    :root { --green:#5fd37f; --bad:#ff6b6b; --navy:#9ab4e8; --red:#ffa94d; --bg:#121418; --card:#1c1f26; --text:#e8e8e8; --muted:#a0a6b3; --head:#262b36; --line:#2c3140; --grid:#2c3140; --grid0:#4a5063; --obs:#9ab4e8; --spine:#6fa8ff; --warnbg:#3a3010; }
-    header { background:linear-gradient(135deg, #0c1730 0%, #15305f 60%, #1f4f8f 100%); }
+    :root {
+      --bg:#111315; --card:#16191c; --raised:#1f2327; --soft:#1a1d20;
+      --text:#eceef0; --text-2:#a4a9b0; --text-3:#7f858d;
+      --line:rgba(236,238,240,.09); --grid:rgba(236,238,240,.06); --tick:rgba(236,238,240,.34);
+      --fc:#f5a04e; --fc-ink:#f5a04e; --fc-band:rgba(245,160,78,.12);
+      --pos:#4cc38a; --neg:#ec5d62;
+      --shadow:none; --float:0 8px 24px rgba(0,0,0,.4);
+    }
   }
-  * { box-sizing: border-box; }
-  body { margin:0; font-family: -apple-system, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background:var(--bg); color:var(--text); -webkit-font-smoothing:antialiased; }
-  header { background:linear-gradient(135deg, #1a3263 0%, #2b4f93 60%, #3b7dd8 100%); color:#fff; padding:18px 16px 20px; box-shadow:0 2px 12px rgba(20,40,90,.25); }
-  header h1 { margin:0; font-size:1.25rem; font-weight:700; letter-spacing:-.01em; } header p { margin:4px 0 0; font-size:.85rem; opacity:.85; }
-  .hwrap { max-width:980px; margin:0 auto; display:flex; flex-direction:row; justify-content:space-between; align-items:center; text-align:left; gap:14px; }
-  .hwrap > div:first-child, .hwrap > h1 { flex:1; min-width:0; }
-  .jbtn { display:inline-block; background:rgba(255,255,255,.14); color:#fff; border:1px solid rgba(255,255,255,.35); font-weight:600; font-size:.95rem; padding:10px 16px; border-radius:999px; text-decoration:none; white-space:nowrap; backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); }
-  .jbtn:hover { background:rgba(255,255,255,.26); } .hbtns { display:flex; gap:8px; }
-  main { max-width: 980px; margin: 0 auto; padding: 16px; }
-  .cards { display:grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap:12px; margin-bottom:16px; }
-  .card { background:var(--card); border-radius:16px; padding:14px 16px; box-shadow:0 2px 10px rgba(20,40,90,.06); border:1px solid var(--line); }
-  .card .label { font-size:.74rem; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; font-weight:600; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
-  .card .label .ic { font-size:1rem; line-height:1; }
-  #qarrow { font-size:1.1rem; font-weight:700; color:var(--red); text-transform:none; }
-  .card .value { font-size:1.85rem; font-weight:800; margin:6px 0 2px; letter-spacing:-.02em; font-variant-numeric:tabular-nums; }
-  .card .sub { font-size:.82rem; color:var(--muted); line-height:1.4; }
-  .red { color:var(--red); } .navy { color:var(--navy); } .ideal { color:var(--green) !important; } .ideal-tag { color:var(--green); font-weight:600; } .bad { color:var(--bad) !important; } .bad-tag { color:var(--bad); font-weight:600; }
-  .chart-wrap { background:var(--card); border-radius:16px; padding:12px; box-shadow:0 2px 10px rgba(20,40,90,.06); border:1px solid var(--line); margin-bottom:16px; }
-  canvas { width:100% !important; height:320px !important; }
-  .ctitle { font-size:.9rem; font-weight:700; color:var(--navy); margin:2px 4px 8px; }
-  table { width:100%; border-collapse:separate; border-spacing:0; background:var(--card); border-radius:16px; overflow:hidden; box-shadow:0 2px 10px rgba(20,40,90,.06); border:1px solid var(--line); font-size:.95rem; }
-  th, td { padding:10px 12px; text-align:right; border-bottom:1px solid var(--line); } tr:last-child td { border-bottom:0; }
-  th:first-child, td:first-child { text-align:left; }
-  th { background:var(--head); color:var(--navy); font-weight:700; font-size:.8rem; text-transform:uppercase; letter-spacing:.04em; }
-  td.lvl { font-weight:800; color:var(--red); font-variant-numeric:tabular-nums; }
-  .note { font-size:.85rem; color:var(--muted); margin:14px 0; line-height:1.45; }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; }
+  body { margin:0; font:400 .875rem/1.5 var(--sans); background:var(--bg); color:var(--text); -webkit-font-smoothing:antialiased; }
+  a { color:inherit; text-decoration:underline; text-decoration-color:var(--tick); text-underline-offset:3px; transition:text-decoration-color .15s var(--ease), color .15s var(--ease); }
+  a:hover { color:var(--text); text-decoration-color:currentColor; }
+  :focus-visible { outline:2px solid var(--text); outline-offset:2px; border-radius:4px; }
+  h1, h2, h3, p { margin:0; }
+  .ic { width:18px; height:18px; flex:none; fill:none; stroke:currentColor; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round; }
 
-  .warn { background:var(--warnbg); border-left:4px solid #e0a800; padding:10px 12px; border-radius:10px; font-size:.9rem; margin-bottom:12px; }
-  footer { font-size:.76rem; color:var(--muted); padding:8px 16px 20px; text-align:center; line-height:1.5; max-width:980px; margin:0 auto; } footer p { margin:6px 0; } footer a { color:var(--muted); }
-  @media (max-width: 640px) {
-    header { padding:14px 14px 16px; } header h1 { font-size:1.08rem; } header p { font-size:.78rem; }
-    .hwrap { flex-direction:column; text-align:center; gap:12px; } .hwrap > div:first-child, .hwrap > h1 { flex:none; } .hbtns { display:flex; justify-content:center; gap:8px; width:100%; }
-    .jbtn, header a.back { flex:1; text-align:center; padding:10px 10px; font-size:.92rem; width:auto; }
-    main { padding:12px 12px 16px; }
-    .cards { grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:12px; }
-    .card { padding:12px 12px 11px; border-radius:14px; } .card .value { font-size:1.5rem; margin:5px 0 1px; } .card .label { font-size:.64rem; letter-spacing:.05em; } .card .label .ic { font-size:.9rem; } .card .sub { font-size:.72rem; }
-    .card.wide { grid-column: 1 / -1; }
-    #wetsuit { font-size:1.15rem !important; }
-    .chart-wrap { padding:10px 6px 6px; border-radius:14px; margin-bottom:12px; } .ctitle { font-size:.8rem; margin:2px 6px 6px; }
-    canvas { height:240px !important; }
-    table { font-size:.82rem; border-radius:14px; } th, td { padding:9px 7px; } th { font-size:.68rem; }
-    th:nth-child(3), td:nth-child(3), th:nth-child(4), td:nth-child(4) { display:none; }
-    .note { font-size:.78rem; }
-  }
-  a { color:var(--navy); }
-  #installbar { display:none; position:fixed; left:12px; right:12px; bottom:12px; z-index:50; background:var(--card); color:var(--text); border:1px solid var(--line); border-radius:12px; padding:12px 14px; box-shadow:0 6px 24px rgba(0,0,0,.25); font-size:.9rem; line-height:1.4; max-width:560px; margin:0 auto; }
-  #installbar b { color:var(--navy); } #installbar .ib { display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; }
-  #installbar button { border:0; border-radius:8px; padding:9px 14px; font-weight:600; cursor:pointer; font-size:.9rem; } #installbar .go { background:var(--navy); color:#fff; } #installbar .no { background:transparent; color:var(--muted); }
-  /* barre d'onglets en bas (mobile) */
+  /* en-tête */
+  header { border-bottom:1px solid var(--line); }
+  .hwrap { max-width:1200px; margin:0 auto; padding:8px 32px; min-height:64px; display:flex; align-items:center; justify-content:space-between; gap:16px; }
+  header h1 { font-size:1rem; font-weight:600; line-height:1.25; }
+  .topnav { display:flex; gap:4px; }
+  .topnav a { display:flex; align-items:center; height:36px; padding:0 12px; border-radius:8px; color:var(--text-2); font-weight:500; text-decoration:none; white-space:nowrap; transition:background-color .15s var(--ease), color .15s var(--ease); }
+  .topnav a:hover { color:var(--text); background:var(--raised); }
+  .topnav a[aria-current] { color:var(--text); background:var(--raised); box-shadow:inset 0 0 0 1px var(--line); }
+
+  main { max-width:1200px; margin:0 auto; padding:24px 32px 32px; display:grid; gap:16px; }
+  main > * { min-width:0; }
+  .panel { background:var(--card); border:1px solid var(--line); border-radius:12px; box-shadow:var(--shadow); }
+  .label { font-size:.8125rem; line-height:1.25rem; color:var(--text-2); }
+  .sub { font-size:.8125rem; line-height:1.25rem; color:var(--text-3); font-weight:400; }
+  .value { font-family:var(--mono); font-variant-numeric:tabular-nums; font-weight:500; white-space:nowrap; }
+  .value .u { font-size:.5em; font-weight:400; letter-spacing:0; color:var(--text-2); margin-left:.3em; }
+  .fc { color:var(--fc-ink); }
+  .ideal { color:var(--pos) !important; } .ideal-tag { color:var(--pos); font-weight:500; }
+  .bad { color:var(--neg) !important; } .bad-tag { color:var(--neg); font-weight:500; }
+  .warn { display:flex; align-items:center; gap:8px; padding:12px 16px; background:var(--raised); border:1px solid var(--line); border-radius:12px; color:var(--text); }
+  .warn .ic { color:var(--text-2); }
+
+  /* maintenant : la lecture sur l'échelle, puis sa trace des 24 dernières heures */
+  .now { display:grid; grid-template-columns:360px minmax(0, 1fr); border-radius:16px; }
+  .now-read { padding:20px 24px 24px; display:flex; flex-direction:column; gap:8px; border-right:1px solid var(--line); }
+  .read { flex:1; display:flex; align-items:center; gap:16px; }
+  #gauge { flex:none; width:116px; height:176px; }
+  #gauge svg { display:block; -webkit-mask-image:linear-gradient(to bottom, transparent, #000 16%, #000 84%, transparent); mask-image:linear-gradient(to bottom, transparent, #000 16%, #000 84%, transparent); }
+  #gauge line { shape-rendering:crispEdges; }
+  .g-staff { stroke:var(--tick); } .g-minor { stroke:var(--tick); opacity:.6; } .g-major { stroke:var(--text-2); }
+  .g-num { font:11px var(--mono); fill:var(--text-3); }
+  .g-now { stroke:var(--text); stroke-width:1.5; }
+  .g-fc { stroke:var(--fc); stroke-width:2; } .g-fcm { stroke:var(--fc); stroke-width:2; opacity:.4; }
+  .g-fct { font:11px var(--sans); fill:var(--fc-ink); text-anchor:end; }
+  .g-ideal { fill:var(--pos); opacity:.75; }
+  .read-fig { position:relative; flex:1; min-width:0; }
+  .now .value { font-size:3.5rem; line-height:1; letter-spacing:-.03em; }
+  .read-fig .sub { position:absolute; left:0; right:0; top:100%; margin-top:12px; }
+  .now-trace { padding:20px 24px 16px; min-width:0; }
+
+  /* mesures */
+  .stats { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:12px; }
+  .stat { padding:20px; }
+  .stat .value { font-size:1.75rem; line-height:2rem; margin:8px 0 4px; }
+  .stat .words { font-size:1.125rem; line-height:1.5rem; font-weight:500; margin:12px 0 4px; }
+  .span2 { grid-column:span 2; }
+  .trend { display:inline-flex; align-items:center; gap:4px; vertical-align:top; }
+  #win { margin:8px 0 4px; display:grid; gap:4px; font-size:1rem; }
+  #win strong { font-weight:400; color:var(--text-2); }
+
+  /* graphiques */
+  .chart { padding:20px 24px 16px; }
+  .chead { display:flex; flex-wrap:wrap; align-items:baseline; justify-content:space-between; gap:8px 24px; margin-bottom:16px; }
+  .ctitle { font-size:.875rem; line-height:1.25rem; font-weight:500; }
+  .chart.main .ctitle { font-size:1rem; }
+  .ctitle .sub { margin-left:8px; }
+  .legend { display:flex; flex-wrap:wrap; gap:4px 16px; margin:0; padding:0; list-style:none; font-size:.8125rem; line-height:1.25rem; color:var(--text-2); }
+  .legend li { display:flex; align-items:center; gap:8px; }
+  .k { flex:none; width:16px; height:0; border-top:2px solid var(--text); }
+  .k-fc { border-color:var(--fc); } .k-fcd { border-top:2px dashed var(--fc); } .k-spine { border-top:2px dotted var(--text-3); }
+  .k-band { height:10px; border:0; border-radius:2px; background:var(--fc-band); }
+  .plot { position:relative; width:100%; }
+  .plot-day { height:200px; } .plot-main { height:360px; } .plot-cmp { height:240px; }
+
+  /* tableau */
+  .tbl { overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; }
+  th, td { height:44px; padding:0 16px; text-align:right; white-space:nowrap; border-bottom:1px solid var(--line); }
+  th { height:40px; font-size:.8125rem; font-weight:400; color:var(--text-3); }
+  tr:last-child td { border-bottom:0; }
+  th:first-child, td:first-child { text-align:left; padding-left:24px; }
+  th:last-child, td:last-child { text-align:left; padding-left:32px; padding-right:24px; }
+  td.n { font-family:var(--mono); font-variant-numeric:tabular-nums; color:var(--text-2); }
+  td.lvl { color:var(--fc-ink); font-weight:500; }
+  td .tag { margin-left:8px; font-size:.8125rem; color:var(--text-3); }
+  tbody tr { transition:background-color .15s var(--ease); }
+  tbody tr.today { background:var(--soft); }
+  tbody tr:hover { background:var(--raised); }
+
+  /* méthode */
+  .about { margin-top:16px; padding-top:24px; border-top:1px solid var(--line); }
+  .about h2 { font-size:1rem; font-weight:500; margin-bottom:16px; }
+  .notes { columns:2; column-gap:48px; }
+  .note { break-inside:avoid; padding-bottom:24px; }
+  .note h3 { font-size:.875rem; font-weight:500; margin-bottom:4px; }
+  .note p { color:var(--text-2); }
+  .note strong { font-weight:500; color:var(--text); }
+  footer { max-width:1200px; margin:0 auto; padding:24px 32px 40px; border-top:1px solid var(--line); font-size:.8125rem; line-height:1.25rem; color:var(--text-3); }
+  footer p { max-width:96ch; margin-bottom:12px; }
+  footer strong { font-weight:500; color:var(--text-2); }
+
+  /* installation */
+  #installbar { display:none; position:fixed; left:16px; right:16px; bottom:16px; z-index:50; max-width:560px; margin:0 auto; padding:16px; background:var(--card); border:1px solid var(--line); border-radius:12px; box-shadow:var(--float); color:var(--text-2); }
+  #installbar b { font-weight:500; color:var(--text); }
+  #installbar .ib { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+  #installbar button { height:36px; padding:0 16px; border:0; border-radius:8px; font:500 .875rem var(--sans); cursor:pointer; transition:background-color .15s var(--ease), color .15s var(--ease), transform .15s var(--ease); }
+  #installbar button:active { transform:scale(.98); }
+  #installbar .go { background:var(--text); color:var(--bg); }
+  #installbar .no { background:transparent; color:var(--text-2); }
+  #installbar .no:hover { background:var(--raised); color:var(--text); }
+
   .tabbar { display:none; }
+
+  @media (max-width: 900px) {
+    .stats { grid-template-columns:repeat(2, minmax(0, 1fr)); }
+    .now { grid-template-columns:1fr; }
+    .now-read { border-right:0; border-bottom:1px solid var(--line); padding-bottom:32px; }
+    .read-fig .sub { position:static; margin-top:8px; }
+    .notes { columns:1; }
+  }
   @media (max-width: 640px) {
-    .hbtns { display:none !important; }
-    .hwrap { gap:0; }
-    body { padding-bottom:calc(64px + env(safe-area-inset-bottom)); }
-    .tabbar { display:flex; position:fixed; left:0; right:0; bottom:0; z-index:40; background:var(--card); border-top:1px solid var(--line); padding:6px 8px calc(6px + env(safe-area-inset-bottom)); box-shadow:0 -4px 16px rgba(20,40,90,.08); }
-    .tabbar a { flex:1; display:flex; flex-direction:column; align-items:center; gap:2px; padding:7px 4px; border-radius:12px; text-decoration:none; color:var(--muted); font-size:.78rem; font-weight:600; }
-    .tabbar a .ti { font-size:1.25rem; line-height:1.1; }
-    .tabbar a.active { color:var(--navy); background:var(--head); }
-    #installbar { bottom:calc(72px + env(safe-area-inset-bottom)); }
+    .hwrap { min-height:56px; padding:8px 16px; } .topnav { display:none; }
+    main { padding:16px 16px 24px; gap:12px; }
+    .now-read { padding:16px 16px 20px; } .now-trace { padding:16px 12px 12px 16px; }
+    .now .value { font-size:2.75rem; letter-spacing:-.02em; }
+    .stat { padding:16px; } .stat .label { min-height:2.5rem; } .stat.span2 .label, #winCard .label { min-height:0; }
+    .stat .value { font-size:1.5rem; }
+    .chart { padding:16px 12px 12px 16px; } .chead { margin-bottom:12px; } .ctitle .sub { display:block; margin:0; }
+    .plot-day { height:180px; } .plot-main { height:280px; } .plot-cmp { height:220px; }
+    table { font-size:.8125rem; }
+    th, td { padding:8px; height:auto; } th { white-space:normal; vertical-align:bottom; }
+    th:first-child, td:first-child { padding-left:16px; } th:last-child, td:last-child { padding-left:12px; padding-right:16px; white-space:normal; }
+    th:nth-child(3), td:nth-child(3), th:nth-child(4), td:nth-child(4) { display:none; }
+    td .tag { display:block; margin:0; }
+    .tw { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+    .stat.m-wide { grid-column:span 2; } .stat.m-wide .label { min-height:0; }
+    footer { padding:24px 16px 32px; }
+    /* barre d'onglets en bas (mobile) */
+    body { padding-bottom:calc(72px + env(safe-area-inset-bottom)); }
+    .tabbar { display:flex; gap:4px; position:fixed; left:0; right:0; bottom:0; z-index:40; background:var(--card); border-top:1px solid var(--line); padding:8px 8px calc(8px + env(safe-area-inset-bottom)); }
+    .tabbar a { flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; padding:8px 4px; border-radius:8px; color:var(--text-3); font-size:.75rem; line-height:1rem; font-weight:500; text-decoration:none; transition:background-color .15s var(--ease), color .15s var(--ease); }
+    .tabbar a[aria-current] { color:var(--text); background:var(--raised); }
+    #installbar { bottom:calc(80px + env(safe-area-inset-bottom)); }
   }
 </style>
 </head>
 <body>
 <header>
   <div class="hwrap">
-    <div>
-      <h1>Niveau du fleuve à Montréal – rue Frontenac</h1>
-    </div>
-    <div class="hbtns"><a class="jbtn" href="validation.html">📈 Validation</a><a class="jbtn" href="journal.html">📓 Journal</a></div>
+    <h1>Niveau du fleuve à Montréal – rue Frontenac</h1>
+    <nav class="topnav" aria-label="Pages"><a href="./" aria-current="page">Prévisions</a><a href="validation.html">Validation</a><a href="journal.html">Journal</a></nav>
   </div>
 </header>
 <main>
-  <div id="icewarn" class="warn" style="display:none">Période de glace (décembre–mars) : la prévision est moins fiable (embâcles possibles).</div>
-  <div class="cards">
-    <div class="card"><div class="label"><span class="ic">🌊</span>Niveau en direct</div><div class="value navy" id="live">–</div><div class="sub" id="livetime"></div></div>
-    <div class="card"><div class="label"><span class="ic">💧</span>Débit en direct (LaSalle)</div><div class="value navy" id="disch">–</div><div class="sub" id="dischtime"></div></div>
-    <div class="card"><div class="label"><span class="ic">🌡️</span>Température de l’eau</div><div class="value navy" id="wtemp">–</div><div class="sub" id="wtemptime"></div></div>
-    <div class="card"><div class="label"><span class="ic">🌤️</span>Température de l’air (Montréal)</div><div class="value navy" id="atemp">–</div><div class="sub" id="atempsub"></div></div>
-    <div class="card"><div class="label"><span class="ic">📅</span>Dernier jour complet (J)</div><div class="value navy" id="obsJ">–</div><div class="sub" id="dayJ"></div></div>
-    <div class="card"><div class="label"><span class="ic">🏞️</span>Débit Mille Îles – Bois-des-Filion</div><div class="value navy" id="dbdf">–</div><div class="sub" id="dbdftime"></div></div>
-    <div class="card wide"><div class="label"><span class="ic">🔮</span>Prévision demain (J+1) · débit <span id="qarrow" title="tendance du débit sur 7 jours (le pourcentage, quand il apparaît, est la part des fois où le sens de la flèche s’est avéré juste)"></span></div><div class="value red" id="fc1">–</div><div class="sub" id="fc1m"></div></div>
-    <div class="card wide" id="winCard" style="display:none"><div class="label"><span class="ic">🎯</span>Fenêtre idéale (d’après ton journal)</div><div id="win" style="margin:4px 0;font-size:1.05rem;line-height:1.5"></div><div class="sub" id="winsub"></div></div>
-    <div class="card wide"><div class="label"><span class="ic">🤿</span>Wetsuit suggérée</div><div class="value" id="wetsuit" style="font-size:1.35rem">–</div><div class="sub" id="wetsuitsub"></div></div>
+  <div id="icewarn" class="warn" style="display:none"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>Période de glace (décembre–mars) : la prévision est moins fiable (embâcles possibles)</div>
+
+  <section class="panel now">
+    <div class="now-read">
+      <div class="label">Niveau en direct</div>
+      <div class="read">
+        <div id="gauge"></div>
+        <div class="read-fig"><div class="value" id="live">–</div><div class="sub" id="livetime"></div></div>
+      </div>
+    </div>
+    <div class="now-trace">
+      <div class="chead"><h2 class="ctitle">24 dernières heures <span class="sub">au pas de 5 minutes<span id="finesrc"></span></span></h2></div>
+      <div class="plot plot-day"><canvas id="chartday"></canvas></div>
+    </div>
+  </section>
+
+  <div class="panel stat" id="winCard" style="display:none"><div class="label">Fenêtre idéale d’après ton journal</div><div id="win"></div><div class="sub" id="winsub"></div></div>
+
+  <section class="stats">
+    <div class="panel stat m-wide"><div class="label">Prévision pour demain (J+1)</div><div class="value fc" id="fc1">–</div><div class="sub" id="fc1m"></div></div>
+    <div class="panel stat"><div class="label">Dernier jour complet (J)</div><div class="value" id="obsJ">–</div><div class="sub" id="dayJ"></div></div>
+    <div class="panel stat"><div class="label">Débit en direct à LaSalle</div><div class="value" id="disch">–</div><div class="sub" id="dischtime"></div><div class="sub" id="qtrend" hidden><span id="qarrow" title="tendance du débit sur 7 jours (le pourcentage, quand il apparaît, est la part des fois où le sens de la flèche s’est avéré juste)"></span></div></div>
+    <div class="panel stat"><div class="label">Débit des Mille Îles à Bois-des-Filion</div><div class="value" id="dbdf">–</div><div class="sub" id="dbdftime"></div></div>
+    <div class="panel stat"><div class="label">Température de l’eau</div><div class="value" id="wtemp">–</div><div class="sub" id="wtemptime"></div></div>
+    <div class="panel stat m-wide"><div class="label">Température de l’air à Montréal</div><div class="value" id="atemp">–</div><div class="sub" id="atempsub"></div></div>
+    <div class="panel stat span2"><div class="label">Wetsuit suggérée</div><div class="words" id="wetsuit">–</div><div class="sub" id="wetsuitsub"></div></div>
+  </section>
+
+  <section class="panel chart main">
+    <div class="chead">
+      <h2 class="ctitle">7 prochains jours <span class="sub">moyennes journalières · modèle statistique et SPINE</span></h2>
+      <ul class="legend"><li><i class="k"></i>Observé (horaire, 3 derniers jours)</li><li><i class="k k-fc"></i>Prévision</li><li><i class="k k-band"></i>Marge à 90 %</li><li><i class="k k-spine"></i>SPINE (SHC, officiel)</li></ul>
+    </div>
+    <div class="plot plot-main"><canvas id="chart"></canvas></div>
+  </section>
+
+  <div class="panel tbl">
+    <table>
+      <thead><tr><th>Jour</th><th>Niveau prévu (m)</th><th>Marge à 90 % (± m)</th><th>Fourchette (m)</th><th>SPINE, SHC (m)</th><th>Tendance du débit</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
   </div>
-  <div class="chart-wrap"><div class="ctitle">Niveau des 24 dernières heures, au pas de 5 minutes <span id="finesrc" class="sub" style="font-weight:400"></span></div><canvas id="chartday"></canvas></div>
-  <div class="chart-wrap"><div class="ctitle">7 prochains jours (moyennes journalières) – modèle statistique et SPINE</div><canvas id="chart"></canvas></div>
-  <table>
-    <thead><tr><th>Jour</th><th>Niveau prévu (m)</th><th>Marge ± (90 %)</th><th>Fourchette</th><th>SPINE (SHC)</th><th>Tendance du débit</th></tr></thead>
-    <tbody id="rows"></tbody>
-  </table>
-  <div class="chart-wrap" style="margin-top:16px"><div class="ctitle">2 dernières semaines – niveau mesuré vs prévu la veille (J+1) <span id="cmpstat" class="sub" style="font-weight:400"></span></div><canvas id="chartcmp"></canvas></div>
-  <p class="note" id="skill"></p>
-  <p class="note" id="method"></p>
-  <p class="note"><strong>Wetsuit :</strong> suggestion indicative basée sur une grille classique (eau ≥ 22 °C : lycra ; 18–22 : shorty/3-2 ; 14–18 : 3/2 ; 10–14 : 4/3 + bottes ; 6–10 : 5/4 + bottes, gants, cagoule ; < 6 : 6/5 à cagoule), relevée d’un cran si le ressenti de l’air est sous 10 °C ou le vent au-dessus de 25 km/h. Adapte selon ta tolérance au froid et la durée de session.</p>
-  <p class="note"><strong>Tendance du débit :</strong> sens de la variation du débit à LaSalle par rapport à aujourd’hui, déduit des niveaux prévus par SPINE à Frontenac et Varennes (la pente entre les deux stations reflète le débit). « Stable » = variation sous ±150 m³/s ; légère 150–400 (≈ 2–5 cm de niveau), marquée 400–800 (≈ 5–10 cm), forte > 800. Un astérisque signale un jour où SPINE manquait.</p>
-  <p class="note" id="intranote"></p>
-  <p class="note" id="combonote"></p>
-  <p class="note"><strong>Comment lire :</strong> la marge indique l'écart à l'intérieur duquel 90 % des journées passées sont tombées (validation 2024–2025). Elle s'élargit avec l'horizon parce que les débits futurs des barrages (lac Ontario, Carillon) ne sont pas connus.</p>
-  <p class="note"><strong>Mesuré vs prévu :</strong> chaque point « prévu » est la prévision pour ce jour émise la veille, avec les seules données connues à ce moment. La courbe SPINE se remplit au fil des jours à partir de l'archive (début 9 novembre 2026). L'écart moyen affiché est la moyenne des écarts absolus modèle / mesure sur la période.</p>
-  <p class="note"><strong>SPINE :</strong> chaque prévision (SPINE et modèle statistique) est archivée à chaque mise à jour pour mesurer leur précision au fil des semaines. La colonne SPINE du tableau est la prévision hydrodynamique officielle du Service hydrographique du Canada pour la même station : quand les deux convergent, la confiance est élevée ; quand elles divergent, un changement de débit est probablement prévu en amont.</p>
+
+  <section class="panel chart">
+    <div class="chead">
+      <h2 class="ctitle">2 dernières semaines <span class="sub">niveau mesuré et prévu la veille (J+1)<span id="cmpstat"></span></span></h2>
+      <ul class="legend"><li><i class="k"></i>Mesuré (moyenne journalière)</li><li><i class="k k-fcd"></i>Prévu la veille (modèle)</li><li id="lgspine" hidden><i class="k k-spine"></i>Prévu la veille (SPINE)</li></ul>
+    </div>
+    <div class="plot plot-cmp"><canvas id="chartcmp"></canvas></div>
+  </section>
+
+  <section class="about">
+    <h2>Méthode et lecture</h2>
+    <div class="notes">
+      <div class="note" id="skill" hidden></div>
+      <div class="note" id="method" hidden></div>
+      <div class="note"><h3>Wetsuit</h3><p>Suggestion indicative basée sur une grille classique (eau ≥ 22 °C : lycra ; 18–22 : shorty/3-2 ; 14–18 : 3/2 ; 10–14 : 4/3 + bottes ; 6–10 : 5/4 + bottes, gants, cagoule ; &lt; 6 : 6/5 à cagoule), relevée d’un cran si le ressenti de l’air est sous 10 °C ou le vent au-dessus de 25 km/h. Adapte selon ta tolérance au froid et la durée de session.</p></div>
+      <div class="note"><h3>Tendance du débit</h3><p>Sens de la variation du débit à LaSalle par rapport à aujourd’hui, déduit des niveaux prévus par SPINE à Frontenac et Varennes (la pente entre les deux stations reflète le débit). « Stable » = variation sous ±150 m³/s ; légère 150–400 (≈ 2–5 cm de niveau), marquée 400–800 (≈ 5–10 cm), forte > 800. Un astérisque signale un jour où SPINE manquait.</p></div>
+      <div class="note" id="intranote" hidden></div>
+      <div class="note" id="combonote" hidden></div>
+      <div class="note"><h3>Comment lire</h3><p>La marge indique l’écart à l’intérieur duquel 90 % des journées passées sont tombées (validation 2024–2025). Elle s’élargit avec l’horizon parce que les débits futurs des barrages (lac Ontario, Carillon) ne sont pas connus. Sur le graphique des 7 prochains jours, c’est la bande orangée autour de la prévision. Sur l’échelle graduée à côté du niveau en direct, une graduation vaut 1 cm et le repère orangé situe la prévision de demain par rapport au niveau actuel.</p></div>
+      <div class="note"><h3>Mesuré et prévu</h3><p>Chaque point « prévu » est la prévision pour ce jour émise la veille, avec les seules données connues à ce moment. La courbe SPINE se remplit au fil des jours à partir de l’archive (début 9 novembre 2026). L’écart moyen affiché est la moyenne des écarts absolus modèle / mesure sur la période.</p></div>
+      <div class="note"><h3>SPINE</h3><p>Chaque prévision (SPINE et modèle statistique) est archivée à chaque mise à jour pour mesurer leur précision au fil des semaines. La colonne SPINE du tableau est la prévision hydrodynamique officielle du Service hydrographique du Canada pour la même station : quand les deux convergent, la confiance est élevée ; quand elles divergent, un changement de débit est probablement prévu en amont.</p></div>
+    </div>
+  </section>
 </main>
 <div id="installbar" role="dialog" aria-live="polite">
-  <div id="installtxt"><b>Installer comme application</b> — une icône sur ton écran d’accueil, plein écran, et la dernière prévision reste consultable sans réseau.</div>
+  <div id="installtxt"><b>Installer comme application</b> — une icône sur ton écran d’accueil, plein écran, et la dernière prévision reste consultable sans réseau</div>
   <div class="ib"><button class="go" id="installgo">Installer</button><button class="no" id="installno">Plus tard</button></div>
 </div>
-<nav class="tabbar"><a href="./" class="active"><span class="ti">🌊</span>Prévisions</a><a href="validation.html"><span class="ti">📈</span>Validation</a><a href="journal.html"><span class="ti">📓</span>Journal</a></nav>
+<nav class="tabbar" aria-label="Pages">
+  <a href="./" aria-current="page"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 6c.6.5 1.2 1 2.5 1C7 7 7 5 9.5 5c2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/><path d="M2 12c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/><path d="M2 18c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/></svg>Prévisions</a>
+  <a href="validation.html"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="m19 9-5 5-4-4-3 3"/></svg>Validation</a>
+  <a href="journal.html"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 6h4"/><path d="M2 10h4"/><path d="M2 14h4"/><path d="M2 18h4"/><rect width="16" height="20" x="4" y="2" rx="2"/><path d="M16 2v20"/></svg>Journal</a>
+</nav>
 <footer>
   <p><strong>Outil personnel, indicatif et non officiel</strong>, sans garantie d'exactitude ni de disponibilité. Les prévisions sont statistiques et peuvent être fausses de plusieurs centimètres ; le surf en rivière comporte des risques et chacun reste responsable de ses décisions. Pour la navigation et la sécurité, consultez les prévisions officielles du <a href="https://www.marees.gc.ca" target="_blank" rel="noopener">Service hydrographique du Canada</a> et <a href="https://vigilance.geo.msp.gouv.qc.ca" target="_blank" rel="noopener">Vigilance Québec</a>.</p>
   <p>Sources : niveaux d'eau, température de l'eau et prévision SPINE du <a href="https://www.marees.gc.ca" target="_blank" rel="noopener">Service hydrographique du Canada</a> (Pêches et Océans Canada, API IWLS) ; débits hydrométriques d'<a href="https://eaux.ec.gc.ca" target="_blank" rel="noopener">Environnement et Changement climatique Canada</a> (données provisoires non validées) ; variations de débit du lac Ontario de la <a href="https://ijc.org/fr/clofsl" target="_blank" rel="noopener">Commission mixte internationale</a> ; débits aux centrales (archivés, non affichés) d'<a href="https://www.hydroquebec.com/documents-donnees/donnees-ouvertes/" target="_blank" rel="noopener">Hydro-Québec</a> (CC BY-NC 4.0) ; météo d'<a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> (<a href="https://creativecommons.org/licenses/by/4.0/deed.fr" target="_blank" rel="noopener">CC BY 4.0</a>). Contient de l'information visée par la <a href="https://ouvert.canada.ca/fr/licence-du-gouvernement-ouvert-canada" target="_blank" rel="noopener">Licence du gouvernement ouvert – Canada</a>. Ce site n'est ni produit ni approuvé par le gouvernement du Canada ; les données ont été transformées (moyennes, conversions de référence, modèle statistique).</p>
   <p>Vie privée : aucun témoin (cookie), aucune mesure d'audience, aucune donnée personnelle collectée par ce site. L'hébergeur (<a href="https://docs.github.com/fr/site-policy/privacy-policies/github-general-privacy-statement" target="_blank" rel="noopener">GitHub Pages</a>) peut journaliser les adresses IP. La page Journal est privée : le jeton d'accès reste dans ton navigateur et n'est envoyé qu'à GitHub. Code source et modèle : <a href="https://github.com/mimomimo15/prevision-frontenac" target="_blank" rel="noopener">GitHub</a>.</p>
 </footer>
 <script>
-const fmt = v => (v == null ? '–' : (v >= 0 ? '+' : '') + v.toFixed(2) + ' m');
+// ---- formats : un seul partout, à la française (virgule décimale, vrai signe moins, espace insécable avant l'unité)
+const NB = ' ', MINUS = '−';
+const dec = (v, n = 2) => { const a = Math.abs(v).toFixed(n); return (v < 0 && +a !== 0 ? MINUS : '') + a.replace('.', ','); };      // 10,2 · −3,4
+const sgn = (v, n = 2) => { const a = Math.abs(v).toFixed(n); return (+a === 0 ? '' : v < 0 ? MINUS : '+') + a.replace('.', ','); };   // +0,06 · −0,11 · 0,00
+const fmt = v => (v == null ? '–' : sgn(v) + NB + 'm');
+const val = (id, num, unit) => { document.getElementById(id).innerHTML = num + (unit ? '<span class="u">' + unit + '</span>' : ''); };
 const fdate = s => { const d = new Date(s + 'T12:00:00'); return d.toLocaleDateString('fr-CA', { weekday: 'short', day: 'numeric', month: 'short' }); };
+// heure d'une mesure : « à 16 h 20 » aujourd'hui, « mer. 11 nov. à 16 h 20 » sinon
+const fwhen = s => { const d = new Date(s), h = d.toLocaleTimeString('fr-CA', { hour: 'numeric', minute: '2-digit' }); return d.toDateString() === new Date().toDateString() ? 'à ' + h : d.toLocaleDateString('fr-CA', { weekday: 'short', day: 'numeric', month: 'short' }) + ' à ' + h; };
+const svg = p => '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">' + p + '</svg>';
+const ARROW = { flat: svg('<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>'), up: svg('<path d="M7 7h10v10"/><path d="M7 17 17 7"/>'), down: svg('<path d="m7 7 10 10"/><path d="M17 7v10H7"/>') };
+// tendance : flèche + mots ; dans le tableau, le mot « hausse / baisse » s'efface à l'écran sur mobile (la flèche le dit) mais reste lu par les lecteurs d'écran
+const trendHTML = (t, compact) => t ? '<span class="trend">' + ARROW[t.dir] + (compact && t.word ? '<span class="tw">' + t.word + ' </span>' + t.amp : t.txt) + '</span>' : '–';
+const note = (id, title, html) => { const el = document.getElementById(id); el.innerHTML = '<h3>' + title + '</h3><p>' + html.charAt(0).toUpperCase() + html.slice(1) + '</p>'; el.hidden = false; };
 // ---- lever / coucher du soleil (NOAA, précision ~1 min), heure locale de l'appareil
 function sunTimes(date, lat, lon) {
   const rad = Math.PI / 180, noon = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12);   // midi local du jour demandé
@@ -150,7 +303,28 @@ function sunTimes(date, lat, lon) {
   return { rise: f(rise), set: f(set), len: Math.floor(mins / 60) + ' h ' + String(mins % 60).padStart(2, '0') };
 }
 // ---- Plage idéale (réservée aux personnes connectées au journal privé : jeton dans ce navigateur)
-let plage = null, liveLevel = null, liveQ = null, liveBdf = null, SPINE_H = null;
+let plage = null, liveLevel = null, liveQ = null, liveBdf = null, SPINE_H = null, FC1 = null;
+// ---- Échelle limnimétrique : le niveau actuel au centre, 1 cm = 4 px, graduations longues aux 10 cm.
+// Repère orangé : prévision de demain et sa marge. Bande verte : plage idéale du journal, quand il est connecté.
+function drawGauge() {
+  const el = document.getElementById('gauge'); if (!el) return;
+  if (liveLevel == null) { el.innerHTML = ''; return; }
+  const W = 116, H = 176, X = 64, PX = 400, mid = H / 2, y = v => mid - (v - liveLevel) * PX;
+  const c0 = Math.ceil((liveLevel - mid / PX) * 100), c1 = Math.floor((liveLevel + mid / PX) * 100);
+  let s = `<line class="g-staff" x1="${X}" y1="0" x2="${X}" y2="${H}"/>`;
+  for (let c = c0; c <= c1; c++) {
+    const yy = +y(c / 100).toFixed(1), m = ((c % 10) + 10) % 10, len = m === 0 ? 16 : m === 5 ? 10 : 6;
+    s += `<line class="${m === 0 ? 'g-major' : 'g-minor'}" x1="${X}" y1="${yy}" x2="${X + len}" y2="${yy}"/>`;
+    if (m === 0 && Math.abs(yy - mid) > 10) s += `<text class="g-num" x="${X + 22}" y="${yy + 4}">${sgn(c / 100, 1)}</text>`;
+  }
+  if (plage && plage.nmin != null) { const a = Math.max(0, y(plage.nmax)), b = Math.min(H, y(plage.nmin)); if (b > a) s += `<rect class="g-ideal" x="${X - 4}" y="${a.toFixed(1)}" width="3" height="${(b - a).toFixed(1)}"/>`; }
+  if (FC1 && Math.abs(y(FC1.level) - mid) < mid - 8) {
+    const yf = y(FC1.level).toFixed(1), ya = Math.max(0, y(FC1.level + FC1.margin)).toFixed(1), yb = Math.min(H, y(FC1.level - FC1.margin)).toFixed(1);
+    s += `<line class="g-fcm" x1="${X - 9}" y1="${ya}" x2="${X - 9}" y2="${yb}"/><line class="g-fc" x1="${X - 14}" y1="${yf}" x2="${X}" y2="${yf}"/><text class="g-fct" x="${X - 20}" y="${+yf + 4}">demain</text>`;
+  }
+  s += `<line class="g-now" x1="${X - 4}" y1="${mid}" x2="${W}" y2="${mid}"/>`;
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Échelle graduée : niveau actuel ${fmt(liveLevel)}${FC1 ? ', prévision de demain ' + fmt(FC1.level) : ''}">${s}</svg>`;
+}
 function markIdeal() {
   if (!plage) return;
   const set = (id, subId, v, lo, hi, txt) => {
@@ -162,10 +336,11 @@ function markIdeal() {
     const s = document.createElement('span'); s.className = ok ? 'ideal-tag' : 'bad-tag';
     s.textContent = ok ? ' · dans ta plage idéale' : ' · hors plage (' + txt(lo) + ' → ' + txt(hi) + ')'; sub.appendChild(s);
   };
-  const fq = v => Math.round(v).toLocaleString('fr-CA') + ' m³/s';
+  const fq = v => Math.round(v).toLocaleString('fr-CA') + NB + 'm³/s';
   set('live', 'livetime', liveLevel, plage.nmin, plage.nmax, v => fmt(v));
   set('disch', 'dischtime', liveQ, plage.qmin, plage.qmax, fq);
   set('dbdf', 'dbdftime', liveBdf, plage.bmin, plage.bmax, fq);
+  drawGauge();
   idealWindow();
 }
 // Fenêtre idéale : heures d'aujourd'hui (à venir) et de demain où le niveau prévu (SPINE horaire, corrigé quand possible) est dans ta plage
@@ -204,18 +379,17 @@ function idealWindow() {
 })();
 fetch('data.json?t=' + Date.now()).then(r => r.json()).then(d => {
   window.checkStale = function () {};   // bandeau « données en retard » retiré à la demande de l'utilisateur
-  if (d.ice) document.getElementById('icewarn').style.display = 'block';
-  if (d.live) { liveLevel = d.live.value; document.getElementById('live').textContent = fmt(d.live.value); document.getElementById('livetime').textContent = 'lecture du ' + new Date(d.live.time).toLocaleString('fr-CA', { dateStyle: 'short', timeStyle: 'short' }); }
-  else { liveLevel = d.partial_today; document.getElementById('live').textContent = d.partial_today != null ? fmt(d.partial_today) : '–'; document.getElementById('livetime').textContent = d.partial_today != null ? 'moyenne partielle d’aujourd’hui' : 'indisponible'; }
-  const ftime = s => new Date(s).toLocaleString('fr-CA', { dateStyle: 'short', timeStyle: 'short' });
-  if (d.water_temp) { document.getElementById('wtemp').textContent = d.water_temp.value.toFixed(1).replace('.', ',') + ' °C'; document.getElementById('wtemptime').textContent = (d.water_temp.value * 9 / 5 + 32).toFixed(1).replace('.', ',') + ' °F · capteur de la station · ' + ftime(d.water_temp.time); } else document.getElementById('wtemptime').textContent = 'indisponible';
-  if (d.discharge) { liveQ = d.discharge.value; document.getElementById('disch').textContent = d.discharge.value.toLocaleString('fr-CA') + ' m³/s'; document.getElementById('dischtime').textContent = 'ECCC 02OA016 · ' + ftime(d.discharge.time); } else document.getElementById('dischtime').textContent = 'indisponible';
+  if (d.ice) document.getElementById('icewarn').style.display = 'flex';
+  if (d.live) { liveLevel = d.live.value; val('live', sgn(d.live.value), 'm'); document.getElementById('livetime').textContent = 'lecture ' + fwhen(d.live.time); }
+  else { liveLevel = d.partial_today; if (d.partial_today != null) val('live', sgn(d.partial_today), 'm'); document.getElementById('livetime').textContent = d.partial_today != null ? 'moyenne partielle d’aujourd’hui' : 'indisponible'; }
+  if (d.water_temp) { val('wtemp', dec(d.water_temp.value, 1), '°C'); document.getElementById('wtemptime').textContent = dec(d.water_temp.value * 9 / 5 + 32, 1) + NB + '°F · capteur de la station · ' + fwhen(d.water_temp.time); } else document.getElementById('wtemptime').textContent = 'indisponible';
+  if (d.discharge) { liveQ = d.discharge.value; val('disch', d.discharge.value.toLocaleString('fr-CA'), 'm³/s'); document.getElementById('dischtime').textContent = 'ECCC 02OA016 · ' + fwhen(d.discharge.time); } else document.getElementById('dischtime').textContent = 'indisponible';
   markIdeal();
   SPINE_H = (d.spine_adj && d.spine_adj.length) ? d.spine_adj : d.spine_hourly; if (SPINE_H) SPINE_H.adj = !!(d.spine_adj && d.spine_adj.length);
-  if (d.discharge_bdf) { liveBdf = d.discharge_bdf.value; document.getElementById('dbdf').textContent = d.discharge_bdf.value.toLocaleString('fr-CA') + ' m³/s'; document.getElementById('dbdftime').textContent = 'ECCC 02OA003 · ' + ftime(d.discharge_bdf.time); } else document.getElementById('dbdftime').textContent = 'indisponible';
+  if (d.discharge_bdf) { liveBdf = d.discharge_bdf.value; val('dbdf', d.discharge_bdf.value.toLocaleString('fr-CA'), 'm³/s'); document.getElementById('dbdftime').textContent = 'ECCC 02OA003 · ' + fwhen(d.discharge_bdf.time); } else document.getElementById('dbdftime').textContent = 'indisponible';
   const a = d.air;
-  if (a) { document.getElementById('atemp').textContent = a.temp.toFixed(1).replace('.', ',') + ' °C'; document.getElementById('atempsub').textContent = 'ressenti ' + a.feels.toFixed(0) + ' °C · ' + ftime(a.time); } else document.getElementById('atempsub').textContent = 'indisponible';
-  try { const sun = sunTimes(new Date(), 45.52, -73.55); const sp = document.createElement('div'); sp.textContent = `☀ ${sun.rise} → ${sun.set} (${sun.len} de jour)`; document.getElementById('atempsub').appendChild(sp); } catch (e) {}
+  if (a) { val('atemp', dec(a.temp, 1), '°C'); document.getElementById('atempsub').textContent = 'ressenti ' + dec(a.feels, 0) + NB + '°C · ' + fwhen(a.time); } else document.getElementById('atempsub').textContent = 'indisponible';
+  try { const sun = sunTimes(new Date(), 45.52, -73.55); const sp = document.createElement('div'); sp.textContent = `soleil de ${sun.rise} à ${sun.set} · ${sun.len} de jour`; document.getElementById('atempsub').appendChild(sp); } catch (e) {}
   // Wetsuit : d'abord la température de l'eau, puis un cran de plus si l'air est froid ou le vent fort
   if (d.water_temp && a) {
     const w = d.water_temp.value, t = a.feels, v = Math.max(a.wind, a.gust * 0.6);
@@ -232,53 +406,79 @@ fetch('data.json?t=' + Date.now()).then(r => r.json()).then(d => {
       ['Combinaison 6/5 mm à cagoule + bottes 7 mm + gants 5 mm', 'eau glaciale : sessions courtes, jamais seul']
     ];
     document.getElementById('wetsuit').textContent = suits[lvl][0];
-    document.getElementById('wetsuitsub').textContent = suits[lvl][1] + ' · eau ' + w.toFixed(0) + ' °C, ressenti ' + t.toFixed(0) + ' °C, vent ' + a.wind.toFixed(0) + (a.gust > a.wind + 10 ? ' (raf. ' + a.gust.toFixed(0) + ')' : '') + ' km/h' + (reasons.length ? ' · +1 cran : ' + reasons.join(', ') : '');
+    document.getElementById('wetsuitsub').textContent = suits[lvl][1] + ' · eau ' + dec(w, 0) + ' °C, ressenti ' + dec(t, 0) + ' °C, vent ' + a.wind.toFixed(0) + (a.gust > a.wind + 10 ? ' (raf. ' + a.gust.toFixed(0) + ')' : '') + ' km/h' + (reasons.length ? ' · +1 cran : ' + reasons.join(', ') : '');
   } else document.getElementById('wetsuitsub').textContent = 'données manquantes';
-  document.getElementById('obsJ').textContent = fmt(d.obs_J); document.getElementById('dayJ').textContent = fdate(d.day_J) + ' · moyenne journalière';
+  if (d.obs_J != null) val('obsJ', sgn(d.obs_J), 'm'); document.getElementById('dayJ').textContent = fdate(d.day_J) + ' · moyenne journalière';
   const f = d.forecast;
   const todayStr = new Date().toLocaleDateString('fr-CA'), tomorrowStr = new Date(Date.now() + 864e5).toLocaleDateString('fr-CA');
   const fTom = f.find(x => x.date === tomorrowStr) || f[0];
-  document.getElementById('fc1').textContent = fmt(fTom.level);
-  document.getElementById('fc1m').textContent = '± ' + fTom.margin.toFixed(2) + ' m · ' + fdate(fTom.date) + (d.intraday ? ` · ajustée à ${d.intraday.hour} h avec le niveau mesuré aujourd’hui` : '');
+  val('fc1', sgn(fTom.level), 'm');
+  document.getElementById('fc1m').textContent = '± ' + dec(fTom.margin) + ' m · ' + fdate(fTom.date) + (d.intraday ? ` · ajustée à ${d.intraday.hour} h avec le niveau mesuré aujourd’hui` : '');
+  FC1 = fTom; drawGauge();
   const qf = d.q_forecast || []; const qmap = Object.fromEntries(qf.map(q => [q.date, q]));
   const q0 = d.q_anchor_day;
-  const trendQ = q => { if (q == null || q0 == null) return '–'; const dq = q - q0, a = Math.abs(dq);
-    if (a < 150) return '→ stable'; const amp = a < 400 ? 'légère' : a < 800 ? 'marquée' : 'forte';
-    return (dq > 0 ? '↗ hausse ' : '↘ baisse ') + amp; };
-  document.getElementById('rows').innerHTML = f.map(x => { const q = qmap[x.date]; return `<tr><td>${fdate(x.date)}${x.date === todayStr ? ' <span class="sub">(aujourd’hui, estimé)</span>' : ''}</td><td class="lvl">${fmt(x.level)}</td><td>${x.margin.toFixed(2)}</td><td>${fmt(x.level - x.margin)} … ${fmt(x.level + x.margin)}</td><td>${x.spine == null ? '–' : fmt(x.spine)}</td><td>${q ? trendQ(q.q) + (q.src === 'persistance' ? ' *' : '') : '–'}</td></tr>`; }).join('');
-  if (qf.length && q0 != null) { const last = qf[qf.length - 1]; const q7 = (d.qskill || {})['7']; document.getElementById('qarrow').textContent = trendQ(last.q).charAt(0) + (q7 ? ' ' + (q7.hit*100).toFixed(0) + ' %' : ''); }
-  if (d.intraday) document.getElementById('intranote').innerHTML = `<strong>Ajustement en cours de journée :</strong> à ${d.intraday.hour} h, la moyenne des ${d.intraday.n} heures déjà mesurées aujourd’hui (${fmt(d.intraday.partial)}) est comparée à ce que le modèle prévoyait pour aujourd’hui (${fmt(d.intraday.model_today)}). L’écart (${(100 * d.intraday.x).toFixed(1).replace('.', ',')} cm) corrige l’estimation d’aujourd’hui et les prévisions des jours suivants avec des coefficients calibrés heure par heure sur 2020–2025 (erreur typique de la prévision de demain : 10,5 cm sans ajustement → 7,7 cm à 10 h, 6,7 cm à 17 h). Après 18 h, la journée devient le jour J et le modèle repart sur des moyennes complètes.`;
-  else document.getElementById('intranote').style.display = 'none';
+  const trendQ = q => { if (q == null || q0 == null) return null; const dq = q - q0, a = Math.abs(dq);
+    if (a < 150) return { dir: 'flat', txt: 'stable' }; const amp = a < 400 ? 'légère' : a < 800 ? 'marquée' : 'forte';
+    const word = dq > 0 ? 'hausse' : 'baisse'; return { dir: dq > 0 ? 'up' : 'down', word, amp, txt: word + ' ' + amp }; };
+  document.getElementById('rows').innerHTML = f.map(x => { const q = qmap[x.date], today = x.date === todayStr; return `<tr${today ? ' class="today"' : ''}><td>${fdate(x.date)}${today ? '<span class="tag"><span class="tw">aujourd’hui, </span>estimé</span>' : ''}</td><td class="n lvl">${sgn(x.level)}</td><td class="n">${dec(x.margin)}</td><td class="n">${sgn(x.level - x.margin)} à ${sgn(x.level + x.margin)}</td><td class="n">${x.spine == null ? '–' : sgn(x.spine)}</td><td>${q ? trendHTML(trendQ(q.q), true) + (q.src === 'persistance' ? ' *' : '') : '–'}</td></tr>`; }).join('');
+  if (qf.length && q0 != null) { const last = qf[qf.length - 1]; const q7 = (d.qskill || {})['7']; document.getElementById('qarrow').innerHTML = trendHTML(trendQ(last.q)) + ' sur 7 jours' + (q7 ? ' · sens juste ' + (q7.hit*100).toFixed(0) + NB + '% des fois' : ''); document.getElementById('qtrend').hidden = false; }
+  if (d.intraday) note('intranote', 'Ajustement en cours de journée', `à ${d.intraday.hour} h, la moyenne des ${d.intraday.n} heures déjà mesurées aujourd’hui (${fmt(d.intraday.partial)}) est comparée à ce que le modèle prévoyait pour aujourd’hui (${fmt(d.intraday.model_today)}). L’écart (${dec(100 * d.intraday.x, 1)} cm) corrige l’estimation d’aujourd’hui et les prévisions des jours suivants avec des coefficients calibrés heure par heure sur 2020–2025 (erreur typique de la prévision de demain : 10,5 cm sans ajustement → 7,7 cm à 10 h, 6,7 cm à 17 h). Après 18 h, la journée devient le jour J et le modèle repart sur des moyennes complètes.`);
   const cb = d.combo || {}; const ck = Object.keys(cb).sort((a, b) => a - b);
-  if (ck.length) document.getElementById('combonote').innerHTML = '<strong>Prévision combinée (automatique) :</strong> pour les échéances ci-dessous, le niveau prévu est un mélange du modèle statistique et de SPINE dont les poids sont recalculés à chaque mise à jour d’après les archives : ' + ck.map(k => `${k === '0' ? 'aujourd’hui' : 'J+' + k} : ${(cb[k].w_model * 100).toFixed(0)} % modèle / ${(100 - cb[k].w_model * 100).toFixed(0)} % SPINE (erreur ${(cb[k].rmse_model * 100).toFixed(0)} / ${(cb[k].rmse_spine * 100).toFixed(0)} → ${(cb[k].rmse_combo * 100).toFixed(0)} cm, n=${cb[k].n})`).join(' · ') + '. Les autres échéances restent le modèle seul tant qu’il n’y a pas 30 jours de comparaisons.';
-  else document.getElementById('combonote').innerHTML = '<strong>Prévision combinée :</strong> dès qu’une échéance aura 30 jours de comparaisons archivées (modèle, SPINE et niveau réel), le niveau prévu deviendra automatiquement le mélange des deux qui minimise l’erreur, et ses poids se recaleront chaque jour.';
+  if (ck.length) note('combonote', 'Prévision combinée (automatique)', 'pour les échéances ci-dessous, le niveau prévu est un mélange du modèle statistique et de SPINE dont les poids sont recalculés à chaque mise à jour d’après les archives : ' + ck.map(k => `${k === '0' ? 'aujourd’hui' : 'J+' + k} : ${(cb[k].w_model * 100).toFixed(0)} % modèle / ${(100 - cb[k].w_model * 100).toFixed(0)} % SPINE (erreur ${(cb[k].rmse_model * 100).toFixed(0)} / ${(cb[k].rmse_spine * 100).toFixed(0)} → ${(cb[k].rmse_combo * 100).toFixed(0)} cm, n=${cb[k].n})`).join(' · ') + '. Les autres échéances restent le modèle seul tant qu’il n’y a pas 30 jours de comparaisons.');
+  else note('combonote', 'Prévision combinée', 'dès qu’une échéance aura 30 jours de comparaisons archivées (modèle, SPINE et niveau réel), le niveau prévu deviendra automatiquement le mélange des deux qui minimise l’erreur, et ses poids se recaleront chaque jour.');
   const sk = d.skill || {}; const keys = Object.keys(sk);
-  let skillTxt = keys.length ? '<strong>Précision mesurée (auto-apprentissage, archives des dernières semaines) :</strong> ' + keys.map(k => `${k} : SPINE ±${(sk[k].rmse_spine*100).toFixed(0)} cm → ajusté ±${(sk[k].rmse_adj*100).toFixed(0)} cm (n=${sk[k].n})`).join(' · ') : '<strong>Auto-apprentissage :</strong> l’archivage des prévisions a commencé ; la correction automatique de SPINE et les statistiques de précision apparaîtront après une dizaine de jours de données.';
-  if (d.stat_skill) skillTxt += ` · Modèle statistique à J+1 : ±${(d.stat_skill.rmse_J1*100).toFixed(0)} cm (${d.stat_skill.n} jours).`;
+  let skillTxt = keys.length ? keys.map(k => `${k} : SPINE ±${(sk[k].rmse_spine*100).toFixed(0)} cm → ajusté ±${(sk[k].rmse_adj*100).toFixed(0)} cm (n=${sk[k].n})`).join(' · ') : 'l’archivage des prévisions a commencé ; la correction automatique de SPINE et les statistiques de précision apparaîtront après une dizaine de jours de données.';
+  if (d.stat_skill) skillTxt += `${keys.length ? ' ·' : ''} Modèle statistique à J+1 : ±${(d.stat_skill.rmse_J1*100).toFixed(0)} cm (${d.stat_skill.n} jours).`;
   const qs = d.qskill || {}; const qk = Object.keys(qs).sort((a, b) => a - b);
   if (qk.length) skillTxt += ` <br><strong>Flèches de débit (sens correct) :</strong> ` + qk.map(k => `J+${k} : ${(qs[k].hit*100).toFixed(0)} % (±${qs[k].mae} m³/s, n=${qs[k].n})`).join(' · ');
   // fiabilité affichée à côté de la flèche de la carte (horizon 7 j) quand elle est connue
   if (qs['7']) document.getElementById('qarrow').title = `tendance du débit sur 7 jours · sens correct ${(qs['7'].hit*100).toFixed(0)} % des fois (n=${qs['7'].n})`;
-  document.getElementById('skill').innerHTML = skillTxt;
-  document.getElementById('method').innerHTML = (d.model && d.model.startsWith('v3') ? `<strong>Méthode (modèle v3${d.model === 'v3 partiel' ? ', partiel' : ''}) :</strong> régression par horizon sur les niveaux amont (Pointe-Claire ${d.pc_J.toFixed(2)} m, Sainte-Anne-de-Bellevue ${d.sa_J.toFixed(2)} m, IGLD85), le niveau observé à Frontenac, le débit de l’Outaouais à Ottawa–Britannia (${d.britannia_q != null ? d.britannia_q.toLocaleString('fr-CA') + ' m³/s' : '–'}), et depuis le 9 novembre 2026 : la variation du niveau de l’Outaouais à Hull, celle du débit sortant du lac Ontario (CMI), celle du niveau à Lanoraie (aval), le débit du Richelieu, la variation à Varennes et les heures 12–18 h du jour J à Frontenac et Pointe-Claire. Sélection des variables sur 2020–2023, test sur 2024–2025 : erreur typique hors glace 5,2 cm à J+1 (v2 : 7,2), 12,3 à J+2 (14,6), 19,0 à J+3 (20,7).` : d.model === 'v2' ? `<strong>Méthode (modèle v2) :</strong> régression par horizon sur les niveaux amont (Pointe-Claire ${d.pc_J.toFixed(2)} m, Sainte-Anne-de-Bellevue ${d.sa_J.toFixed(2)} m, IGLD85), le niveau observé à Frontenac le jour J, leurs tendances, et le débit de la rivière des Outaouais à Ottawa–Britannia (${d.britannia_q != null ? d.britannia_q.toLocaleString('fr-CA') + ' m³/s' : '–'}, 2 jours en amont). Validation croisée 2019–2024 : erreur typique hors glace 5,6 cm à J+1, 11 cm à J+2, 15 cm à J+3.` : `<strong>Méthode :</strong> niveau prévu = modèle amont (lac Saint-Louis à Pointe-Claire ${d.pc_J.toFixed(2)} m, lac des Deux Montagnes à Sainte-Anne-de-Bellevue ${d.sa_J.toFixed(2)} m, IGLD85) + composante aval observée le jour J (${fmt(d.residual)}) qui décroît de 16 % par jour. Régression calibrée sur 2019–2025 (erreur typique à J+1 : 5–6 cm hors glace).`);
+  note('skill', keys.length ? 'Précision mesurée (auto-apprentissage, archives des dernières semaines)' : 'Auto-apprentissage', skillTxt);
+  const brit = d.britannia_q != null ? d.britannia_q.toLocaleString('fr-CA') + ' m³/s' : '–';
+  if (d.model && d.model.startsWith('v3')) note('method', `Méthode (modèle v3${d.model === 'v3 partiel' ? ', partiel' : ''})`, `régression par horizon sur les niveaux amont (Pointe-Claire ${dec(d.pc_J)} m, Sainte-Anne-de-Bellevue ${dec(d.sa_J)} m, IGLD85), le niveau observé à Frontenac, le débit de l’Outaouais à Ottawa–Britannia (${brit}), et depuis le 9 novembre 2026 : la variation du niveau de l’Outaouais à Hull, celle du débit sortant du lac Ontario (CMI), celle du niveau à Lanoraie (aval), le débit du Richelieu, la variation à Varennes et les heures 12–18 h du jour J à Frontenac et Pointe-Claire. Sélection des variables sur 2020–2023, test sur 2024–2025 : erreur typique hors glace 5,2 cm à J+1 (v2 : 7,2), 12,3 à J+2 (14,6), 19,0 à J+3 (20,7).`);
+  else if (d.model === 'v2') note('method', 'Méthode (modèle v2)', `régression par horizon sur les niveaux amont (Pointe-Claire ${dec(d.pc_J)} m, Sainte-Anne-de-Bellevue ${dec(d.sa_J)} m, IGLD85), le niveau observé à Frontenac le jour J, leurs tendances, et le débit de la rivière des Outaouais à Ottawa–Britannia (${brit}, 2 jours en amont). Validation croisée 2019–2024 : erreur typique hors glace 5,6 cm à J+1, 11 cm à J+2, 15 cm à J+3.`);
+  else note('method', 'Méthode', `niveau prévu = modèle amont (lac Saint-Louis à Pointe-Claire ${dec(d.pc_J)} m, lac des Deux Montagnes à Sainte-Anne-de-Bellevue ${dec(d.sa_J)} m, IGLD85) + composante aval observée le jour J (${fmt(d.residual)}) qui décroît de 16 % par jour. Régression calibrée sur 2019–2025 (erreur typique à J+1 : 5–6 cm hors glace).`);
+
+  // ---- graphiques : encre neutre pour ce qui est mesuré, orangé pour ce qui est prévu, pointillé gris pour SPINE
   const MOB = window.matchMedia('(max-width: 640px)').matches;
-  Chart.defaults.font.size = MOB ? 10 : 12;
   const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
-  const C_OBS = css('--obs'), C_RED = css('--red'), C_SPINE = css('--spine'), C_GRID = css('--grid'), C_GRID0 = css('--grid0'), C_TXT = css('--text');
-  Chart.defaults.color = C_TXT; Chart.defaults.borderColor = C_GRID;
+  const C_TXT = css('--text'), C_TXT2 = css('--text-2'), C_MUTED = css('--text-3'), C_FC = css('--fc'), C_BAND = css('--fc-band'), C_GRID = css('--grid'), C_TICK = css('--tick'), C_LINE = css('--line'), C_RAISED = css('--raised'), C_CARD = css('--card');
+  const SANS = css('--sans'), MONO = css('--mono');
+  Chart.defaults.font.family = SANS; Chart.defaults.font.size = MOB ? 11 : 12;
+  Chart.defaults.color = C_MUTED; Chart.defaults.borderColor = C_GRID; Chart.defaults.animation = false;
+  Object.assign(Chart.defaults.plugins.tooltip, { backgroundColor: C_RAISED, titleColor: C_TXT, bodyColor: C_TXT2, borderColor: C_LINE, borderWidth: 1, padding: 12, cornerRadius: 8, usePointStyle: true, boxWidth: 8, boxHeight: 8, boxPadding: 4, titleFont: { weight: 500 }, bodyFont: { family: MONO, size: 12 } });
+  const tickFont = { family: MONO, size: 11 };
+  const yAxis = extra => Object.assign({ border: { display: false }, grid: { color: C_GRID, drawTicks: false },
+    ticks: { font: tickFont, padding: 12, callback: (v, i, t) => sgn(v, t.length > 1 && Math.abs(t[1].value - t[0].value) < 0.0099 ? 3 : 2) },
+    title: { display: !MOB, text: 'm (zéro des cartes)', color: C_MUTED, font: { size: 11 } } }, extra);
+  // l'axe vertical reprend l'échelle : une graduation longue par étiquette, quatre courtes entre deux
+  const graduations = { id: 'graduations', afterDraw(c) { const y = c.scales.y, a = c.chartArea, g = c.ctx, t = y.ticks; if (t.length < 2) return; const step = (t[1].value - t[0].value) / 5;
+    g.save(); g.strokeStyle = C_TICK; g.lineWidth = 1; g.beginPath();
+    for (let i = 0; i <= (t.length - 1) * 5; i++) { const py = Math.round(y.getPixelForValue(t[0].value + i * step)) + 0.5; if (py < a.top - 1 || py > a.bottom + 1) continue; g.moveTo(a.left - (i % 5 === 0 ? 8 : 4), py); g.lineTo(a.left, py); }
+    g.stroke(); g.restore(); } };
+  // la marge à 90 % : une bande autour de la prévision, qui s'élargit avec l'horizon
+  const bandPlugin = pts => ({ id: 'band', beforeDatasetsDraw(c) { if (pts.length < 2) return; const x = c.scales.x, y = c.scales.y, a = c.chartArea, g = c.ctx;
+    g.save(); g.beginPath(); g.rect(a.left, a.top, a.width, a.height); g.clip(); g.beginPath();
+    pts.forEach((p, i) => g[i ? 'lineTo' : 'moveTo'](x.getPixelForValue(p.x), y.getPixelForValue(p.y + p.m)));
+    for (let i = pts.length - 1; i >= 0; i--) g.lineTo(x.getPixelForValue(pts[i].x), y.getPixelForValue(pts[i].y - pts[i].m));
+    g.closePath(); g.fillStyle = C_BAND; g.fill(); g.restore(); } });
+  const nowPlugin = (t, txt) => ({ id: 'now', beforeDatasetsDraw(c) { const a = c.chartArea, px = Math.round(c.scales.x.getPixelForValue(t)) + 0.5, g = c.ctx; if (px < a.left || px > a.right) return;
+    g.save(); g.strokeStyle = C_TICK; g.lineWidth = 1; g.setLineDash([2, 3]); g.beginPath(); g.moveTo(px, a.top); g.lineTo(px, a.bottom); g.stroke();
+    g.fillStyle = C_MUTED; g.font = '11px ' + SANS; g.textBaseline = 'top'; const left = px - a.left > g.measureText(txt).width + 16;   // à gauche du trait s'il y a la place, sinon à droite
+    g.textAlign = left ? 'right' : 'left'; g.fillText(txt, px + (left ? -8 : 8), a.top + 2); g.restore(); } });
   // Graphique « aujourd'hui » : 24 h au pas de 5 min. Essai en direct auprès de l'API du SHC (si le navigateur l'autorise), sinon copie de la dernière mise à jour.
   const IWLS = 'https://api-iwls.dfo-mpo.gc.ca/api/v1/stations/5cebf1e03d0f4a073c4bbdee/data';
   const iso = x => x.toISOString().slice(0, 19) + 'Z';
   const drawDay = (pts, src) => {
     document.getElementById('finesrc').textContent = src;
     new Chart(document.getElementById('chartday'), {
-      type: 'line',
-      data: { datasets: [{ label: 'Niveau observé (5 min)', data: pts, borderColor: C_OBS, backgroundColor: C_OBS, pointRadius: 0, borderWidth: 2, tension: 0.2 }] },
-      options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'nearest', intersect: false }, parsing: false,
-        scales: { x: { type: 'time', time: { unit: 'hour', stepSize: MOB ? 4 : 2 }, ticks: { callback: v => new Date(v).toLocaleTimeString('fr-CA', { hour: '2-digit', minute: '2-digit' }), maxRotation: 0, maxTicksLimit: MOB ? 7 : 13 }, grid: { color: C_GRID } },
-                  y: { title: { display: !MOB, text: 'm (zéro des cartes)' } } },
+      type: 'line', plugins: [graduations],
+      data: { datasets: [{ label: 'Niveau observé (5 min)', data: pts, borderColor: C_TXT, backgroundColor: C_TXT, pointRadius: 0, pointHoverRadius: 4, borderWidth: 1.5, tension: 0.2 }] },
+      options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'nearest', axis: 'x', intersect: false }, parsing: false,
+        scales: { x: { type: 'time', time: { unit: 'hour', stepSize: MOB ? 4 : 2 }, border: { display: false }, grid: { display: false }, ticks: { font: tickFont, callback: v => new Date(v).getHours() + ' h', maxRotation: 0, maxTicksLimit: MOB ? 7 : 13 } },
+                  y: yAxis() },
         plugins: { legend: { display: false },
-          tooltip: { callbacks: { title: items => new Date(items[0].parsed.x).toLocaleString('fr-CA', { weekday: 'short', hour: '2-digit', minute: '2-digit' }), label: c => c.parsed.y.toFixed(3) + ' m' } } } }
+          tooltip: { displayColors: false, callbacks: { title: items => new Date(items[0].parsed.x).toLocaleString('fr-CA', { weekday: 'short', hour: 'numeric', minute: '2-digit' }), label: c => sgn(c.parsed.y, 3) + NB + 'm' } } } }
     });
   };
   (async () => {
@@ -290,36 +490,38 @@ fetch('data.json?t=' + Date.now()).then(r => r.json()).then(d => {
       const j = await r.json();
       const live = j.map(p => ({ x: new Date(p.eventDate).getTime(), y: p.value }));
       if (live.length > 10) {
-        drawDay(live, '· en direct (SHC)');
+        drawDay(live, ' · en direct (SHC)');
         const last = live[live.length - 1];
-        liveLevel = last.y; document.getElementById('live').textContent = fmt(last.y); document.getElementById('livetime').textContent = 'lecture du ' + new Date(last.x).toLocaleString('fr-CA', { dateStyle: 'short', timeStyle: 'short' }) + ' · en direct'; markIdeal(); if (window.checkStale) checkStale(new Date(last.x).toISOString());
+        liveLevel = last.y; val('live', sgn(last.y), 'm'); document.getElementById('livetime').textContent = 'lecture ' + fwhen(last.x) + ' · en direct'; drawGauge(); markIdeal(); if (window.checkStale) checkStale(new Date(last.x).toISOString());
         return;
       }
     } catch (e) { /* navigateur sans accès direct : on garde la copie */ }
-    drawDay(snap, '· dernière mise à jour ' + new Date(d.generated).toLocaleTimeString('fr-CA', { hour: '2-digit', minute: '2-digit' }));
+    drawDay(snap, ' · dernière mise à jour à ' + new Date(d.generated).toLocaleTimeString('fr-CA', { hour: 'numeric', minute: '2-digit' }));
   })();
   // Graphique 7 jours : 3 derniers jours (horaire) + prévision journalière à 7 jours (placée à midi)
   const noon = s => new Date(s + 'T12:00:00').getTime();
   const hourly = (d.hourly || []).map(p => ({ x: new Date(p.t).getTime(), y: p.v }));
   const lastObs = hourly.length ? hourly[hourly.length - 1] : null;
   const pred = (lastObs ? [lastObs] : []).concat(f.map(x => ({ x: noon(x.date), y: x.level })));
+  const band = (lastObs ? [{ x: lastObs.x, y: lastObs.y, m: 0 }] : []).concat(f.map(x => ({ x: noon(x.date), y: x.level, m: x.margin })));
+  const margins = Object.fromEntries(f.map(x => [noon(x.date), x.margin]));
   const sp = f.filter(x => x.spine != null).map(x => ({ x: noon(x.date), y: x.spine }));
   const fr = { weekday: 'short', day: 'numeric', month: 'short' };
   new Chart(document.getElementById('chart'), {
-    type: 'line',
+    type: 'line', plugins: [graduations, bandPlugin(band)].concat(lastObs ? [nowPlugin(lastObs.x, 'dernière mesure')] : []),
     data: { datasets: [
-      { label: 'Observé (horaire, 3 derniers jours)', data: hourly, borderColor: C_OBS, backgroundColor: C_OBS, pointRadius: 0, borderWidth: 2, tension: 0 },
-      { label: 'Prévision (moyenne journalière)', data: pred, borderColor: C_RED, backgroundColor: C_RED, pointRadius: pred.map((p, i) => (i === 0 && lastObs) ? 0 : 4), pointHoverRadius: pred.map((p, i) => (i === 0 && lastObs) ? 0 : 6), borderWidth: 2, tension: 0 },
-      { label: 'SPINE (SHC, officiel)', data: sp, borderColor: C_SPINE, backgroundColor: C_SPINE, borderDash: [2, 3], pointRadius: 3, borderWidth: 1.5, tension: 0 }
+      { label: 'Observé', data: hourly, borderColor: C_TXT, backgroundColor: C_TXT, pointRadius: 0, pointHoverRadius: 4, borderWidth: 1.5, tension: 0 },
+      { label: 'Prévision', data: pred, borderColor: C_FC, backgroundColor: C_FC, pointBorderColor: C_CARD, pointBorderWidth: 1.5, pointRadius: pred.map((p, i) => (i === 0 && lastObs) ? 0 : 4), pointHoverRadius: pred.map((p, i) => (i === 0 && lastObs) ? 0 : 6), borderWidth: 2, tension: 0 },
+      { label: 'SPINE', data: sp, borderColor: C_MUTED, backgroundColor: C_MUTED, borderDash: [2, 3], pointRadius: 2, pointHoverRadius: 4, borderWidth: 1.5, tension: 0 }
     ] },
     options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'nearest', intersect: false }, parsing: false,
       scales: {
-        x: { type: 'time', time: { unit: 'day' }, ticks: { callback: v => new Date(v).toLocaleDateString('fr-CA', MOB ? { day: 'numeric', month: 'short' } : fr), maxRotation: 0, autoSkip: true, maxTicksLimit: MOB ? 6 : 11 },
-             grid: { color: ctx => (ctx.tick && new Date(ctx.tick.value).getHours() === 0) ? C_GRID0 : 'transparent' } },
-        y: { title: { display: !MOB, text: 'm (zéro des cartes)' } } },
-      plugins: { legend: { position: 'bottom', labels: { boxWidth: MOB ? 10 : 40, padding: MOB ? 8 : 10, font: { size: MOB ? 9 : 12 } } },
-        tooltip: { callbacks: { title: items => new Date(items[0].parsed.x).toLocaleString('fr-CA', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }),
-                                label: c => c.dataset.label + ' : ' + c.parsed.y.toFixed(2) + ' m' } } } }
+        x: { type: 'time', time: { unit: 'day' }, border: { display: false }, ticks: { font: tickFont, callback: v => new Date(v).toLocaleDateString('fr-CA', MOB ? { day: 'numeric', month: 'short' } : fr), maxRotation: 0, autoSkip: true, maxTicksLimit: MOB ? 6 : 11 },
+             grid: { drawTicks: false, color: ctx => (ctx.tick && new Date(ctx.tick.value).getHours() === 0) ? C_GRID : 'transparent' } },
+        y: yAxis({ suggestedMin: Math.min(...f.map(x => x.level - x.margin)), suggestedMax: Math.max(...f.map(x => x.level + x.margin)) }) },
+      plugins: { legend: { display: false },
+        tooltip: { callbacks: { title: items => new Date(items[0].parsed.x).toLocaleString('fr-CA', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }),
+                                label: c => { const m = c.datasetIndex === 1 ? margins[c.parsed.x] : null; return c.dataset.label + ' : ' + fmt(c.parsed.y) + (m != null ? ' ± ' + dec(m) : ''); } } } } }
   });
   // ---- comparaison mesuré vs prévu (14 jours)
   const cmp = d.compare || [];
@@ -327,25 +529,25 @@ fetch('data.json?t=' + Date.now()).then(r => r.json()).then(d => {
   const cMod = cmp.filter(p => p.model != null).map(p => ({ x: noon(p.date), y: p.model }));
   const cSp = cmp.filter(p => p.spine != null).map(p => ({ x: noon(p.date), y: p.spine }));
   const errs = cmp.filter(p => p.obs != null && p.model != null).map(p => Math.abs(p.obs - p.model));
-  if (errs.length) document.getElementById('cmpstat').textContent = '· écart moyen modèle : ' + (100 * errs.reduce((a, b) => a + b, 0) / errs.length).toFixed(1) + ' cm sur ' + errs.length + ' j';
+  if (errs.length) document.getElementById('cmpstat').textContent = ' · écart moyen du modèle : ' + dec(100 * errs.reduce((a, b) => a + b, 0) / errs.length, 1) + ' cm sur ' + errs.length + ' j';
   const cmpSets = [
-    { label: 'Mesuré (moyenne journalière)', data: cObs, borderColor: C_OBS, backgroundColor: C_OBS, pointRadius: 4, borderWidth: 2, tension: 0 },
-    { label: 'Prévu la veille (modèle)', data: cMod, borderColor: C_RED, backgroundColor: C_RED, borderDash: [6, 4], pointRadius: 4, pointStyle: 'triangle', borderWidth: 2, tension: 0 }
+    { label: 'Mesuré', data: cObs, borderColor: C_TXT, backgroundColor: C_TXT, pointRadius: 3, pointHoverRadius: 5, borderWidth: 1.5, tension: 0 },
+    { label: 'Prévu la veille (modèle)', data: cMod, borderColor: C_FC, backgroundColor: C_FC, borderDash: [6, 4], pointRadius: 3, pointHoverRadius: 5, borderWidth: 2, tension: 0 }
   ];
-  if (cSp.length) cmpSets.push({ label: 'Prévu la veille (SPINE)', data: cSp, borderColor: C_SPINE, backgroundColor: C_SPINE, borderDash: [2, 3], pointRadius: 3, borderWidth: 1.5, tension: 0 });
+  if (cSp.length) { cmpSets.push({ label: 'Prévu la veille (SPINE)', data: cSp, borderColor: C_MUTED, backgroundColor: C_MUTED, borderDash: [2, 3], pointRadius: 2, pointHoverRadius: 4, borderWidth: 1.5, tension: 0 }); document.getElementById('lgspine').hidden = false; }
   new Chart(document.getElementById('chartcmp'), {
-    type: 'line',
+    type: 'line', plugins: [graduations],
     data: { datasets: cmpSets },
     options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, parsing: false,
       scales: {
-        x: { type: 'time', time: { unit: 'day' }, ticks: { callback: v => new Date(v).toLocaleDateString('fr-CA', MOB ? { day: 'numeric', month: 'short' } : fr), maxRotation: 0, autoSkip: true, maxTicksLimit: MOB ? 7 : 15 } },
-        y: { title: { display: !MOB, text: 'm (zéro des cartes)' } } },
-      plugins: { legend: { position: 'bottom', labels: { boxWidth: MOB ? 10 : 40, padding: MOB ? 8 : 10, font: { size: MOB ? 9 : 12 } } },
+        x: { type: 'time', time: { unit: 'day' }, border: { display: false }, grid: { display: false }, ticks: { font: tickFont, callback: v => new Date(v).toLocaleDateString('fr-CA', { day: 'numeric', month: 'short' }), maxRotation: 0, autoSkip: true, maxTicksLimit: MOB ? 5 : 15 } },
+        y: yAxis() },
+      plugins: { legend: { display: false },
         tooltip: { callbacks: { title: items => new Date(items[0].parsed.x).toLocaleDateString('fr-CA', fr),
-                                label: c => c.dataset.label + ' : ' + c.parsed.y.toFixed(2) + ' m' } } } }
+                                label: c => c.dataset.label + ' : ' + fmt(c.parsed.y) } } } }
   });
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => location.reload());
-}).catch(e => { document.getElementById('method').textContent = 'Données indisponibles : ' + e; });
+}).catch(e => { const el = document.getElementById('method'); el.hidden = false; el.textContent = 'Données indisponibles : ' + e; });
 </script>
 <script>
 // ---- application installable (PWA)
