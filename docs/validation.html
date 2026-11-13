@@ -7,6 +7,7 @@
 <meta name="theme-color" content="#f4f5f6" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#111315" media="(prefers-color-scheme: dark)">
 <link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/svg+xml" href="icons/favicon.svg">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -56,7 +57,10 @@
   /* en-tête */
   header { border-bottom:1px solid var(--line); }
   .hwrap { max-width:1200px; margin:0 auto; padding:8px 32px; min-height:64px; display:flex; align-items:center; justify-content:space-between; gap:16px; }
-  header h1 { font-size:1rem; font-weight:600; line-height:1.25; }
+  header h1 { font-size:1rem; font-weight:600; line-height:1.25; text-wrap:balance; }
+  /* marque : la vague sur l'échelle (version simplifiée de icons/icon.svg), aux couleurs du thème */
+  .brand { display:flex; align-items:center; gap:10px; min-width:0; }
+  .mark { flex:none; width:26px; height:20px; color:var(--text); } .mark .m-s { fill:var(--text-3); } .mark .m-f { fill:var(--fc); }
   .topnav { display:flex; gap:4px; }
   .topnav a { display:flex; align-items:center; height:36px; padding:0 12px; border-radius:8px; color:var(--text-2); font-weight:500; text-decoration:none; white-space:nowrap; transition:background-color .15s var(--ease), color .15s var(--ease); }
   .topnav a:hover { color:var(--text); background:var(--raised); }
@@ -130,7 +134,7 @@
   .tabbar { display:none; }
 
   @media (max-width: 640px) {
-    .hwrap { min-height:56px; padding-top:8px; padding-bottom:8px; } .topnav { display:none; }
+    .hwrap { min-height:56px; padding-top:8px; padding-bottom:8px; } .topnav { display:none; } header h1 { font-size:.9375rem; }   /* le titre tient à côté de la marque */
     main { padding-top:16px; padding-bottom:24px; gap:12px; }
     footer { padding-top:24px; padding-bottom:32px; }
     .hwrap, main, footer { padding-left:max(16px, env(safe-area-inset-left)); padding-right:max(16px, env(safe-area-inset-right)); }
@@ -161,7 +165,7 @@
 <body>
 <header>
   <div class="hwrap">
-    <h1>Validation – modèle vs niveau mesuré</h1>
+    <div class="brand"><svg class="mark" viewBox="1 5 28 22" aria-hidden="true"><rect class="m-s" x="6" y="6" width="2" height="20"/><rect class="m-s" x="8" y="6" width="6" height="2"/><rect class="m-s" x="8" y="24" width="6" height="2"/><path d="M8 21H12.5C16 21 16.5 11 20.5 11C24 11 24.5 17 27.5 17" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><rect class="m-f" x="2" y="10" width="4" height="2"/></svg><h1>Validation – modèle vs niveau mesuré</h1></div>
     <nav class="topnav" aria-label="Pages"><a href="./">Prévisions</a><a href="validation.html" aria-current="page">Validation</a><a href="journal.html">Journal</a></nav>
   </div>
 </header>

@@ -1,19 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a4d8f"/><stop offset="1" stop-color="#132b5c"/></linearGradient>
-    <linearGradient id="w1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9fdcff"/><stop offset="1" stop-color="#2f8fd8"/></linearGradient>
-    <linearGradient id="sea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a7fc9"/><stop offset="1" stop-color="#1b5fa0"/></linearGradient>
-  </defs>
-  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
-  <!-- vague : grande boucle épaisse qui déferle vers la droite -->
-  <path d="M30 352 C 60 300, 110 220, 190 170 C 260 126, 340 118, 396 160 C 440 194, 440 250, 404 278 C 376 300, 334 292, 326 262 C 320 240, 340 224, 358 232 C 350 212, 320 206, 300 222 C 270 246, 290 300, 350 318 C 300 340, 230 346, 170 352 Z" fill="url(#w1)"/>
-  <!-- écume sur la lèvre -->
-  <circle cx="404" cy="152" r="22" fill="#fff" opacity=".95"/>
-  <circle cx="438" cy="178" r="13" fill="#fff" opacity=".85"/>
-  <circle cx="372" cy="136" r="11" fill="#fff" opacity=".8"/>
-  <circle cx="452" cy="210" r="8" fill="#fff" opacity=".7"/>
-  <!-- plan d'eau et lignes de niveau -->
-  <rect x="30" y="352" width="452" height="120" rx="18" fill="url(#sea)"/>
-  <path d="M46 386 Q 100 372, 154 386 T 262 386 T 370 386 T 468 386" fill="none" stroke="#9fdcff" stroke-width="11" stroke-linecap="round" opacity=".9"/>
-  <path d="M46 424 Q 100 410, 154 424 T 262 424 T 370 424 T 468 424" fill="none" stroke="#9fdcff" stroke-width="11" stroke-linecap="round" opacity=".5"/>
+  <!-- La vague sur l'échelle : le trait du niveau part d'une graduation et se soulève en vague stationnaire.
+       À plat, sans dégradé. Gris froids du site ; l'orangé marque ce qui est prévu, à la hauteur de la crête. -->
+  <rect width="512" height="512" rx="112" fill="#111315"/>
+  <!-- échelle : montant, graduations longues en haut et en bas, courtes entre les deux -->
+  <rect x="116" y="96" width="20" height="320" fill="#5d636b"/>
+  <rect x="136" y="96" width="64" height="20" fill="#a4a9b0"/>
+  <rect x="136" y="156" width="36" height="20" fill="#5d636b"/>
+  <rect x="136" y="216" width="36" height="20" fill="#5d636b"/>
+  <rect x="136" y="276" width="36" height="20" fill="#5d636b"/>
+  <rect x="136" y="396" width="64" height="20" fill="#a4a9b0"/>
+  <!-- niveau et vague -->
+  <path d="M136 346H208C266 346 276 196 338 196C390 196 400 286 444 286" fill="none" stroke="#eceef0" stroke-width="28" stroke-linecap="round"/>
+  <!-- repère du niveau prévu -->
+  <rect x="52" y="186" width="64" height="20" fill="#f5a04e"/>
 </svg>
