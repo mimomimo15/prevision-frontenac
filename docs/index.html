@@ -74,9 +74,11 @@
   .warn .ic { color:var(--text-2); }
 
   /* maintenant : la lecture sur l'échelle, puis sa trace des 24 dernières heures */
-  .now { display:grid; grid-template-columns:360px minmax(0, 1fr); border-radius:16px; }
-  .now-read { padding:20px 24px 24px; display:flex; flex-direction:column; gap:8px; border-right:1px solid var(--line); }
-  .read { flex:1; display:flex; align-items:center; gap:16px; }
+  /* deux relevés au même corps, niveau puis débit à LaSalle, sur une même ligne quand la place le permet */
+  .now { display:grid; grid-template-columns:360px 340px minmax(0, 1fr); grid-template-areas:"lvl q trace"; border-radius:16px; }
+  .now-read { min-width:0; padding:20px 24px 24px; display:flex; flex-direction:column; gap:8px; border-right:1px solid var(--line); }
+  .now-lvl { grid-area:lvl; } .now-q { grid-area:q; } .now-trace { grid-area:trace; }
+  .read { flex:1; min-height:176px; display:flex; align-items:center; gap:16px; }
   #gauge { flex:none; width:116px; height:176px; }
   #gauge svg { display:block; -webkit-mask-image:linear-gradient(to bottom, transparent, #000 16%, #000 84%, transparent); mask-image:linear-gradient(to bottom, transparent, #000 16%, #000 84%, transparent); }
   #gauge line { shape-rendering:crispEdges; }
@@ -88,15 +90,15 @@
   .g-ideal { fill:var(--pos); opacity:.75; }
   .read-fig { position:relative; flex:1; min-width:0; }
   .now .value { font-size:3.5rem; line-height:1; letter-spacing:-.03em; }
-  .read-fig .sub { position:absolute; left:0; right:0; top:100%; margin-top:12px; }
-  .now-trace { padding:20px 24px 16px; min-width:0; }
+  .under { position:absolute; left:0; right:0; top:100%; margin-top:12px; }   /* sous le chiffre, sans le décentrer */
+  .now-trace { min-width:0; padding:20px 24px 16px; display:flex; flex-direction:column; }
 
   /* mesures */
   .stats { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:12px; }
   .stat { padding:20px; }
   .stat .value { font-size:1.75rem; line-height:2rem; margin:8px 0 4px; }
   .stat .words { font-size:1.125rem; line-height:1.5rem; font-weight:500; margin:12px 0 4px; }
-  .span2 { grid-column:span 2; }
+  .wide { grid-column:span 3; }
   .trend { display:inline-flex; align-items:center; gap:4px; vertical-align:top; }
   #win { margin:8px 0 4px; display:grid; gap:4px; font-size:1rem; }
   #win strong { font-weight:400; color:var(--text-2); }
@@ -113,7 +115,8 @@
   .k-fc { border-color:var(--fc); } .k-fcd { border-top:2px dashed var(--fc); } .k-spine { border-top:2px dotted var(--text-3); }
   .k-band { height:10px; border:0; border-radius:2px; background:var(--fc-band); }
   .plot { position:relative; width:100%; }
-  .plot-day { height:200px; } .plot-main { height:360px; } .plot-cmp { height:240px; }
+  .plot-day { flex:1 0 200px; } .plot-day canvas { position:absolute; left:0; top:0; }   /* la trace prend la hauteur des relevés voisins */
+  .plot-main { height:360px; } .plot-cmp { height:240px; }
 
   /* tableau */
   .tbl { overflow-x:auto; }
@@ -160,12 +163,23 @@
 
   .tabbar { display:none; }
 
-  @media (max-width: 900px) {
-    .stats { grid-template-columns:repeat(2, minmax(0, 1fr)); }
-    .now { grid-template-columns:1fr; }
-    .now-read { border-right:0; border-bottom:1px solid var(--line); padding-bottom:32px; }
-    .read-fig .sub { position:static; margin-top:8px; }
+  @media (min-width: 901px) and (max-width: 1159px) {   /* écran moyen : les deux relevés l'un sous l'autre, la trace à droite sur toute la hauteur */
+    .now { grid-template-columns:360px minmax(0, 1fr); grid-template-areas:"lvl trace" "q trace"; }
+    .now-q { border-top:1px solid var(--line); }
+    .now-q .read { flex:none; min-height:0; } .now-q .under { position:static; margin-top:8px; }
+  }
+  @media (max-width: 900px) {   /* tablette : les deux relevés côte à côte, la trace dessous */
+    .stats { grid-template-columns:repeat(2, minmax(0, 1fr)); } .wide { grid-column:auto; }
+    .now { grid-template-columns:minmax(0, 1.15fr) minmax(0, 1fr); grid-template-areas:"lvl q" "trace trace"; }
+    .now-q { border-right:0; } .now-trace { border-top:1px solid var(--line); }
     .notes { columns:1; }
+  }
+  @media (max-width: 800px) {   /* étroit : relevés et trace empilés */
+    .now { grid-template-columns:minmax(0, 1fr); grid-template-areas:"lvl" "q" "trace"; }
+    .now-read { border-right:0; border-bottom:1px solid var(--line); } .now-lvl { padding-bottom:32px; }
+    .now-trace { border-top:0; }
+    .under { position:static; margin-top:8px; }
+    .now-q .read { flex:none; min-height:0; }
   }
   @media (max-width: 640px) {
     .hwrap { min-height:56px; padding-top:8px; padding-bottom:8px; } .topnav { display:none; }
@@ -174,6 +188,7 @@
     .hwrap, main, footer { padding-left:max(16px, env(safe-area-inset-left)); padding-right:max(16px, env(safe-area-inset-right)); }
     .now-read { padding:16px 16px 20px; } .now-trace { padding:16px 12px 12px 16px; }
     .now .value { font-size:2.75rem; letter-spacing:-.02em; }
+    #gauge { height:144px; } .read { min-height:0; }   /* échelle un peu plus courte : niveau, débit et prévision de demain tiennent sur le premier écran */
     /* mesures : la prévision de demain garde sa carte ; les autres relevés se lisent en liste, libellé à gauche, chiffre à droite */
     #winCard { padding:16px; }
     .stats { grid-template-columns:minmax(0, 1fr); gap:0; }
@@ -188,7 +203,7 @@
     .stats .stat:nth-child(n+3) { border-top:0; }
     .stats .stat:last-child { border-radius:0 0 12px 12px; }
     .chart { padding:16px 12px 12px 16px; } .chead { margin-bottom:12px; } .ctitle .sub { display:block; margin:0; }
-    .plot-day { height:180px; } .plot-main { height:280px; } .plot-cmp { height:220px; }
+    .plot-day { flex-basis:160px; } .plot-main { height:280px; } .plot-cmp { height:220px; }
     table { font-size:.8125rem; }
     th, td { padding:10px 6px; height:auto; } th { font-size:.75rem; }
     th:first-child, td:first-child { padding-left:16px; } th:last-child, td:last-child { padding-left:10px; padding-right:16px; white-space:normal; }
@@ -230,11 +245,17 @@
   <div id="icewarn" class="warn" style="display:none"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>Période de glace (décembre–mars) : la prévision est moins fiable (embâcles possibles)</div>
 
   <section class="panel now">
-    <div class="now-read">
+    <div class="now-read now-lvl">
       <div class="label">Niveau en direct</div>
       <div class="read">
         <div id="gauge"></div>
-        <div class="read-fig"><div class="value" id="live">–</div><div class="sub" id="livetime"></div></div>
+        <div class="read-fig"><div class="value" id="live">–</div><div class="under"><div class="sub" id="livetime"></div></div></div>
+      </div>
+    </div>
+    <div class="now-read now-q">
+      <div class="label">Débit en direct à LaSalle</div>
+      <div class="read">
+        <div class="read-fig"><div class="value" id="disch">–</div><div class="under"><div class="sub" id="dischtime"></div><div class="sub" id="qtrend" hidden><span id="qarrow" title="tendance du débit sur 7 jours (le pourcentage, quand il apparaît, est la part des fois où le sens de la flèche s’est avéré juste)"></span></div></div></div>
       </div>
     </div>
     <div class="now-trace">
@@ -250,9 +271,8 @@
     <div class="panel stat"><div class="label">Température de l’eau</div><div class="value" id="wtemp">–</div><div class="sub" id="wtemptime"></div></div>
     <div class="panel stat"><div class="label">Température de l’air à Montréal</div><div class="value" id="atemp">–</div><div class="sub" id="atempsub"></div></div>
     <div class="panel stat"><div class="label">Dernier jour complet (J)</div><div class="value" id="obsJ">–</div><div class="sub" id="dayJ"></div></div>
-    <div class="panel stat"><div class="label">Débit en direct à LaSalle</div><div class="value" id="disch">–</div><div class="sub" id="dischtime"></div><div class="sub" id="qtrend" hidden><span id="qarrow" title="tendance du débit sur 7 jours (le pourcentage, quand il apparaît, est la part des fois où le sens de la flèche s’est avéré juste)"></span></div></div>
     <div class="panel stat"><div class="label">Débit des Mille Îles à Bois-des-Filion</div><div class="value" id="dbdf">–</div><div class="sub" id="dbdftime"></div></div>
-    <div class="panel stat span2"><div class="label">Wetsuit suggérée</div><div class="words" id="wetsuit">–</div><div class="sub" id="wetsuitsub"></div></div>
+    <div class="panel stat wide"><div class="label">Wetsuit suggérée</div><div class="words" id="wetsuit">–</div><div class="sub" id="wetsuitsub"></div></div>
   </section>
 
   <section class="panel chart main">
@@ -324,11 +344,11 @@ const ARROW = { flat: svg('<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>'), up: 
 const trendHTML = (t, compact) => t ? '<span class="trend">' + ARROW[t.dir] + (compact && t.word ? '<span class="tw">' + t.word + ' </span>' + t.amp : t.txt) + '</span>' : '–';
 // notes de méthode : sur téléphone, une ligne par note qui se déplie au toucher ; sur grand écran, tout reste ouvert et rien n'est cliquable
 const CHEV = '<svg class="ic chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
-const NOTES_MQ = window.matchMedia('(max-width: 640px)');
-const tabNotes = () => document.querySelectorAll('details.note > summary').forEach(s => { s.tabIndex = NOTES_MQ.matches ? 0 : -1; });
-const syncNotes = () => { document.querySelectorAll('details.note').forEach(d => { d.open = !NOTES_MQ.matches; }); tabNotes(); };
-syncNotes(); NOTES_MQ.addEventListener('change', syncNotes);
-document.querySelector('.notes').addEventListener('click', e => { if (!NOTES_MQ.matches && e.target.closest('summary')) e.preventDefault(); });
+const PHONE_MQ = window.matchMedia('(max-width: 640px)');
+const tabNotes = () => document.querySelectorAll('details.note > summary').forEach(s => { s.tabIndex = PHONE_MQ.matches ? 0 : -1; });
+const syncNotes = () => { document.querySelectorAll('details.note').forEach(d => { d.open = !PHONE_MQ.matches; }); tabNotes(); };
+syncNotes(); PHONE_MQ.addEventListener('change', () => { syncNotes(); drawGauge(); });
+document.querySelector('.notes').addEventListener('click', e => { if (!PHONE_MQ.matches && e.target.closest('summary')) e.preventDefault(); });
 const note = (id, title, html) => { const el = document.getElementById(id); el.innerHTML = '<summary><h3>' + title + '</h3>' + CHEV + '</summary><p>' + html.charAt(0).toUpperCase() + html.slice(1) + '</p>'; el.hidden = false; tabNotes(); };
 // ---- lever / coucher du soleil (NOAA, précision ~1 min), heure locale de l'appareil
 function sunTimes(date, lat, lon) {
@@ -349,7 +369,7 @@ let plage = null, liveLevel = null, liveQ = null, liveBdf = null, SPINE_H = null
 function drawGauge() {
   const el = document.getElementById('gauge'); if (!el) return;
   if (liveLevel == null) { el.innerHTML = ''; return; }
-  const W = 116, H = 176, X = 64, PX = 400, mid = H / 2, y = v => mid - (v - liveLevel) * PX;
+  const W = 116, H = PHONE_MQ.matches ? 144 : 176, X = 64, PX = 400, mid = H / 2, y = v => mid - (v - liveLevel) * PX;   // un peu plus courte sur téléphone
   const c0 = Math.ceil((liveLevel - mid / PX) * 100), c1 = Math.floor((liveLevel + mid / PX) * 100);
   let s = `<line class="g-staff" x1="${X}" y1="0" x2="${X}" y2="${H}"/>`;
   for (let c = c0; c <= c1; c++) {
@@ -515,7 +535,7 @@ fetch('data.json?t=' + Date.now()).then(r => r.json()).then(d => {
       type: 'line', plugins: [graduations],
       data: { datasets: [{ label: 'Niveau observé (5 min)', data: pts, borderColor: C_TXT, backgroundColor: C_TXT, pointRadius: 0, pointHoverRadius: 4, borderWidth: 1.5, tension: 0.2 }] },
       options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'nearest', axis: 'x', intersect: false }, parsing: false,
-        scales: { x: { type: 'time', time: { unit: 'hour', stepSize: MOB ? 4 : 2 }, border: { display: false }, grid: { display: false }, ticks: { font: tickFont, callback: v => new Date(v).getHours() + ' h', maxRotation: 0, maxTicksLimit: MOB ? 7 : 13 } },
+        scales: { x: { type: 'time', time: { unit: 'hour', stepSize: MOB ? 4 : 2 }, border: { display: false }, grid: { display: false }, ticks: { font: tickFont, callback: v => new Date(v).getHours() + ' h', maxRotation: 0, autoSkip: true, autoSkipPadding: 16, maxTicksLimit: MOB ? 7 : 13 } },   // les heures s'espacent d'elles-mêmes quand la trace est étroite
                   y: yAxis() },
         plugins: { legend: { display: false },
           tooltip: { displayColors: false, callbacks: { title: items => new Date(items[0].parsed.x).toLocaleString('fr-CA', { weekday: 'short', hour: 'numeric', minute: '2-digit' }), label: c => sgn(c.parsed.y, 3) + NB + 'm' } } } }
