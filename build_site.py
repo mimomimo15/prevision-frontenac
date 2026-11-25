@@ -379,8 +379,10 @@ def main():
         try:
             with open(os.path.join(DOCS, "spine_archive.csv"), newline="", encoding="utf-8") as f:
                 for r in csv.DictReader(f):
-                    iloc = (dt.datetime.strptime(r["issued_utc"], "%Y-%m-%dT%H:%MZ") + pf.TZ).date()
-                    sp_runs[(iloc, dt.date.fromisoformat(r["target_date"]))] = float(r["level_zc"])
+                    tloc = dt.datetime.strptime(r["issued_utc"], "%Y-%m-%dT%H:%MZ") + pf.TZ
+                    # comparaison à émission égale : seule la SPINE émise le soir du jour J (≥ 18 h, moment où le modèle
+                    # dispose lui aussi du jour J) compte ; une SPINE émise le lendemain contient déjà des heures mesurées
+                    if tloc.hour >= 18: sp_runs[(tloc.date(), dt.date.fromisoformat(r["target_date"]))] = float(r["level_zc"])
         except FileNotFoundError:
             pass
         vrows = {}
@@ -393,7 +395,7 @@ def main():
             if not fcp: continue
             for k, (d, l, mg) in enumerate(fcp, 1):
                 r = vrows.setdefault(d, {"m": [None] * 7, "s": [None] * 7}); r["m"][k - 1] = round(l, 3)
-                if (Jp + dt.timedelta(days=1), d) in sp_runs: r["s"][k - 1] = round(sp_runs[(Jp + dt.timedelta(days=1), d)], 3)   # SPINE archivée le lendemain de J (jour d'émission réel)
+                if (Jp, d) in sp_runs: r["s"][k - 1] = round(sp_runs[(Jp, d)], 3)   # SPINE émise le soir du jour J (même moment que le modèle)
         vdays = [{"date": d.isoformat(), "obs": round(hist[d]["frontenac_zc"], 3), "ice": int(pf.is_ice(d)), **vrows[d]} for d in sorted(vrows) if d in hist and hist[d]["frontenac_zc"] is not None]
         with open(os.path.join(DOCS, "validation.json"), "w", encoding="utf-8") as f:
             json.dump({"generated": dt.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"), "days": vdays}, f, separators=(",", ":"))
