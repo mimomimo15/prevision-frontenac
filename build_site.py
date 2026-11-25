@@ -293,7 +293,7 @@ def main():
     # Pointe-Claire, Sainte-Anne, Varennes), avec un jeu de coefficients par heure (coefs_v4.json). Remplace, pour
     # aujourd'hui, demain et après-demain (et J+3 avant 18 h), la prévision v3 + ajustement intrajournalier, qui reste
     # le repli si une donnée manque ou si la dernière mesure a plus de 3 heures. L'ancienne chaîne reste archivée à part.
-    fc_v3 = list(fc); v4_info = None
+    fc_v3 = list(fc); v4_info = None; hourly_fc = []
     try:
         if pf.V4:
             import requests
@@ -315,6 +315,12 @@ def main():
             if done:
                 fc = new; v4_info = {"day": D4.isoformat(), "hours": h4, "last_obs": tl.strftime("%Y-%m-%dT%H:%M"), "targets": done}
                 print(f"v4 : {h4} h mesurées le {D4}, jours recalés : {done}")
+            # prévision horaire (48 h) et quantiles de ses erreurs passées, pour le graphique et la fenêtre idéale
+            try:
+                hourly_fc = [{"t": (tt - pf.TZ).strftime("%Y-%m-%dT%H:%M:%SZ"), "v": round(lvl, 3), "q": q} for tt, lvl, q in pf.forecast_hourly(hr, D4, h4, [l for d, l, m in base])]
+                print("prévision horaire :", len(hourly_fc), "heures")
+            except Exception as e:
+                print("prévision horaire impossible :", e)
     except Exception as e:
         print("v4 impossible (repli sur v3) :", e)
     # archives (pour évaluer plus tard la précision de SPINE et du modèle) : 7 lignes par exécution chacune ;
@@ -328,6 +334,17 @@ def main():
             w = csv.writer(f)
             if new: w.writerow(["issued_utc", "target_date", "level_zc"])
             for tdate, v in rows: w.writerow([issued, tdate, f"{v:.3f}"])
+    # archive de la prévision horaire du site (90 jours), pour la comparer plus tard au niveau mesuré et à SPINE
+    try:
+        HF = os.path.join(DOCS, "hourly_fc_archive.csv"); hf_rows = []
+        if os.path.exists(HF):
+            with open(HF, newline="", encoding="utf-8") as f: hf_rows = [(r["issued_utc"], r["target_utc"], r["level"]) for r in csv.DictReader(f)]
+        iss_h = dt.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"); lim = (dt.datetime.utcnow() - dt.timedelta(days=90)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        hf_rows = [r for r in hf_rows if r[0] >= lim] + [(iss_h, p["t"], f"{p['v']:.3f}") for p in hourly_fc]
+        with open(HF, "w", newline="", encoding="utf-8") as f:
+            w = csv.writer(f); w.writerow(["issued_utc", "target_utc", "level"]); w.writerows(hf_rows)
+    except Exception as e:
+        print("archive de la prévision horaire impossible :", e)
     # ------------------------------------------------------------------ auto-apprentissage
     # Archives horaires : observations (120 j) et prévisions SPINE 48 h (90 j), puis correction de SPINE
     # par horizon : erreur(h) ≈ a(h) + b(h) × erreur_actuelle, estimée sur les archives (≥ 10 jours).
@@ -610,7 +627,7 @@ def main():
         "residual": round(res, 3), "ice": pf.is_ice(J), "model": model_used, "britannia_q": (round(br[J]) if J in br else None), "live": live, "water_temp": water_temp, "discharge": discharge,
         "partial_today": (round(partial["frontenac_zc"], 3) if partial and partial["frontenac_zc"] is not None else None),
         "history": [{"date": d.isoformat(), "obs": round(hist[d]["frontenac_zc"], 3)} for d in days60], "compare": compare, "hourly": hourly, "fine": fine, "spine_hourly": spine_hourly, "spine_adj": spine_adj, "skill": skill, "stat_skill": stat_skill, "q_forecast": q_fc, "qskill": qskill, "discharge_bdf": discharge_bdf, "air": air, "ms_flow": ms_flow, "q_anchor_day": (round(q_las[J]) if J in q_las else None),
-        "forecast": [{"date": d.isoformat(), "level": round(l, 3), "margin": round(m, 3), "spine": (round(spine[d], 3) if d in spine else None)} for d, l, m in fc], "intraday": intraday, "v4": v4_info, "combo": combo, "v3_horizons": v3_used, "v3_inputs": aux_today,
+        "forecast": [{"date": d.isoformat(), "level": round(l, 3), "margin": round(m, 3), "spine": (round(spine[d], 3) if d in spine else None)} for d, l, m in fc], "intraday": intraday, "v4": v4_info, "hourly_fc": hourly_fc, "hourly_qp": (pf.VH["qp"] if pf.VH and hourly_fc else None), "combo": combo, "v3_horizons": v3_used, "v3_inputs": aux_today,
     }
     with open(os.path.join(DOCS, "data.json"), "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=1)

@@ -146,6 +146,35 @@ def forecast_v4(hr, D, h, base):
     return out
 
 
+# Prévision horaire (48 h) : une régression par échéance L = heures après la dernière mesure (coefs_horaire.json,
+# analyse/fit_horaire.py). Mêmes variables que v4, plus la dernière heure mesurée, le niveau 24 h avant l'heure visée
+# et l'heure de la journée. Chaque échéance porte les quantiles de ses erreurs passées (hors échantillon) : le site
+# en tire le pourcentage de chances que le niveau soit dans une plage donnée.
+_VH_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "coefs_horaire.json")
+VH = json.load(open(_VH_PATH, encoding="utf-8")) if os.path.exists(_VH_PATH) else None
+
+
+def forecast_hourly(hr, D, h, base):
+    """hr, D, h, base : comme forecast_v4. Renvoie [(heure locale visée, niveau, quantiles de l'erreur mesuré − prévu)] pour L = 1..48
+    (liste tronquée à la première échéance incalculable ; vide si une variable de départ manque)."""
+    out = []
+    if not VH or not base or len(base) < 3: return out
+    f0 = v4_features(hr, D, h, base[0], base[0])
+    t0 = dt.datetime.combine(D, dt.time()) + dt.timedelta(hours=h)
+    g = lambda i: hr["fr"].get(t0 - dt.timedelta(hours=i))
+    if f0 is None or g(1) is None or g(3) is None: return out
+    f0["fr_r1"] = g(1); f0["fr_sl2"] = g(1) - g(3)
+    for L in range(1, 49):
+        c = VH["leads"].get(str(L)); tt = t0 + dt.timedelta(hours=L - 1); k = (tt.date() - D).days
+        lag = hr["fr"].get(tt - dt.timedelta(hours=24 if L <= 24 else 48))
+        if c is None or k >= len(base) or lag is None: break
+        a = tt.hour * 2 * math.pi / 24
+        f = dict(f0, pday=base[k], p_today=base[0], lag24=lag, c24=math.cos(a), s24=math.sin(a), c12=math.cos(2 * a), s12=math.sin(2 * a))
+        lvl = c["coef"][0] + sum(b * f[n] for b, n in zip(c["coef"][1:], VH["features"]))
+        out.append((tt, lvl, c["q_ice"] if is_ice(tt.date()) else c["q_free"]))
+    return out
+
+
 def fetch_eccc_daily(station, prop="LEVEL"):
     """Moyennes journalières (heure de l'Est) d'une variable ECCC temps réel (~30 jours). {} si indisponible."""
     acc = defaultdict(list)

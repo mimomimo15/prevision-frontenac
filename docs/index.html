@@ -263,7 +263,7 @@
       </div>
     </div>
     <div class="now-trace">
-      <div class="chead"><h2 class="ctitle">24 dernières heures <span class="sub">au pas de 5 minutes<span id="finesrc"></span></span></h2></div>
+      <div class="chead"><h2 class="ctitle"><span id="daytitle">24 dernières heures</span> <span class="sub"><span id="daysub">au pas de 5 minutes</span><span id="finesrc"></span></span></h2></div>
       <div class="plot plot-day"><canvas id="chartday"></canvas></div>
     </div>
   </section>
@@ -310,6 +310,7 @@
       <details class="note" open><summary><h3>Wetsuit</h3><svg class="ic chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><p>Suggestion indicative basée sur une grille classique (eau ≥ 22 °C : lycra ; 18–22 : shorty/3-2 ; 14–18 : 3/2 ; 10–14 : 4/3 + bottes ; 6–10 : 5/4 + bottes, gants, cagoule ; &lt; 6 : 6/5 à cagoule), relevée d’un cran si le ressenti de l’air est sous 10 °C ou le vent au-dessus de 25 km/h. Adapte selon ta tolérance au froid et la durée de session.</p></details>
       <details class="note" open><summary><h3>Tendance du débit</h3><svg class="ic chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><p>Sens de la variation du débit à LaSalle par rapport à aujourd’hui, déduit des niveaux prévus par SPINE à Frontenac et Varennes (la pente entre les deux stations reflète le débit). « Stable » = variation sous ±150 m³/s ; légère 150–400 (≈ 2–5 cm de niveau), marquée 400–800 (≈ 5–10 cm), forte > 800. Un astérisque signale un jour où SPINE manquait.</p></details>
       <details class="note" id="intranote" hidden open></details>
+      <details class="note" id="hournote" hidden open></details>
       <details class="note" id="combonote" hidden open></details>
       <details class="note" open><summary><h3>Comment lire</h3><svg class="ic chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><p>La marge indique l’écart à l’intérieur duquel 90 % des journées passées sont tombées (validation 2024–2025). Elle s’élargit avec l’horizon parce que les débits futurs des barrages (lac Ontario, Carillon) ne sont pas connus. Sur le graphique des 7 prochains jours, c’est la bande orangée autour de la prévision. Sur l’échelle graduée à côté du niveau en direct, une graduation vaut 1 cm et le repère orangé situe la prévision de demain par rapport au niveau actuel.</p></details>
       <details class="note" open><summary><h3>Mesuré et prévu</h3><svg class="ic chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><p>Chaque point « prévu » est la prévision pour ce jour émise la veille, avec les seules données connues à ce moment. La courbe SPINE se remplit au fil des jours à partir de l’archive (début 9 novembre 2026). L’écart moyen affiché est la moyenne des écarts absolus modèle / mesure sur la période.</p></details>
@@ -367,7 +368,10 @@ function sunTimes(date, lat, lon) {
   return { rise: hm(rise), set: hm(set), len: Math.floor(mins / 60) + NB + 'h' + NB + String(mins % 60).padStart(2, '0') };
 }
 // ---- Plage idéale (réservée aux personnes connectées au journal privé : jeton dans ce navigateur)
-let plage = null, liveLevel = null, liveQ = null, liveBdf = null, SPINE_H = null, FC1 = null;
+let plage = null, liveLevel = null, liveQ = null, liveBdf = null, SPINE_H = null, FC1 = null, HFC = null, QP = null;
+// Chances (0..1) que le niveau soit entre lo et hi à une heure prévue p = {v, q} : part des erreurs passées du modèle horaire
+// (quantiles q aux probabilités QP, à cette échéance) qui auraient laissé le niveau dans la plage.
+function chance(p, lo, hi) { const F = e => { const q = p.q; if (e <= q[0]) return 0; if (e >= q[q.length - 1]) return 1; let i = 1; while (q[i] < e) i++; return QP[i - 1] + (QP[i] - QP[i - 1]) * (e - q[i - 1]) / ((q[i] - q[i - 1]) || 1e-9); }; return Math.max(0, F(hi - p.v) - F(lo - p.v)); }
 // ---- Échelle limnimétrique : le niveau actuel au centre, 1 cm = 4 px, graduations longues aux 10 cm.
 // Repère orangé : prévision de demain et sa marge. Bande verte : plage idéale du journal, quand il est connecté.
 function drawGauge() {
@@ -407,18 +411,24 @@ function markIdeal() {
   drawGauge();
   idealWindow();
 }
-// Fenêtre idéale : heures d'aujourd'hui (à venir) et de demain où le niveau prévu (SPINE horaire, corrigé quand possible) est dans ta plage
+// Fenêtre idéale : heures d'aujourd'hui (à venir) et de demain où le niveau a au moins 1 chance sur 2 d'être dans ta plage,
+// d'après la prévision horaire du site et ses erreurs passées (repli : SPINE horaire, sans pourcentage)
 function idealWindow() {
-  const card = document.getElementById('winCard'); if (!plage || plage.nmin == null || !SPINE_H || !SPINE_H.length) { card.style.display = 'none'; return; }
+  const card = document.getElementById('winCard'); const prob = !!(HFC && HFC.length && QP), SRC = prob ? HFC : SPINE_H;
+  if (!plage || plage.nmin == null || !SRC || !SRC.length) { card.style.display = 'none'; return; }
   const now = Date.now(), days = {};
-  for (const p of SPINE_H) { const t = new Date(p.t).getTime(); if (t < now - 3600e3) continue; const dstr = new Date(t).toLocaleDateString('fr-CA'); (days[dstr] = days[dstr] || []).push({ t, ok: p.v >= plage.nmin && p.v <= plage.nmax, v: p.v }); }
+  for (const p of SRC) { const t = new Date(p.t).getTime(); if (t < now - 3600e3) continue; const dstr = new Date(t).toLocaleDateString('fr-CA'); const pr = prob ? chance(p, plage.nmin, plage.nmax) : null; (days[dstr] = days[dstr] || []).push({ t, pr, ok: prob ? pr >= 0.5 : (p.v >= plage.nmin && p.v <= plage.nmax), v: p.v }); }
   const todayStr = new Date().toLocaleDateString('fr-CA'), tomorrowStr = new Date(now + 864e5).toLocaleDateString('fr-CA');
-  const hh = t => new Date(t).getHours() + NB + 'h';
-  const ranges = pts => { const out = []; let cur = null; for (const p of pts) { if (p.ok) { if (!cur) cur = { a: p.t, b: p.t }; else cur.b = p.t; } else if (cur) { out.push(cur); cur = null; } } if (cur) out.push(cur); return out; };
-  const line = (label, pts) => { if (!pts || !pts.length) return ''; const r = ranges(pts); const txt = r.length ? r.map(x => x.a === x.b ? 'vers ' + hh(x.a) : 'de ' + hh(x.a) + ' à ' + hh(x.b + 3600e3)).join(', ') : (pts.every(p => p.v > plage.nmax) ? 'trop haut toute la période' : pts.every(p => p.v < plage.nmin) ? 'trop bas toute la période' : 'hors plage'); return `<div><strong>${label}</strong> : <span class="${r.length ? 'ideal-tag' : 'bad-tag'}">${txt}</span></div>`; };
+  const hh = t => new Date(t).getHours() + NB + 'h', pc = x => Math.round(100 * x) + NB + '%';
+  const ranges = pts => { const out = []; let cur = null; for (const p of pts) { if (p.ok) { if (!cur) cur = { a: p.t, b: p.t, s: 0, n: 0 }; cur.b = p.t; cur.s += p.pr || 0; cur.n++; } else if (cur) { out.push(cur); cur = null; } } if (cur) out.push(cur); return out; };
+  const line = (label, pts) => { if (!pts || !pts.length) return ''; const r = ranges(pts); let txt;
+    if (r.length) txt = r.map(x => (x.a === x.b ? 'vers ' + hh(x.a) : 'de ' + hh(x.a) + ' à ' + (new Date(x.b + 3600e3).getHours() || 24) + NB + 'h') + (prob ? ' (' + pc(x.s / x.n) + ' de chances)' : '')).join(', ');
+    else { const best = prob ? pts.reduce((m, p) => p.pr > m.pr ? p : m, pts[0]) : null;
+      txt = (best && best.pr >= 0.05) ? 'peu probable, au mieux ' + pc(best.pr) + ' vers ' + hh(best.t) : pts.every(p => p.v > plage.nmax) ? 'trop haut toute la période' : pts.every(p => p.v < plage.nmin) ? 'trop bas toute la période' : 'hors plage'; }
+    return `<div><strong>${label}</strong> : <span class="${r.length ? 'ideal-tag' : 'bad-tag'}">${txt}</span></div>`; };
   const html = line('Aujourd’hui (reste de la journée)', days[todayStr]) + line('Demain', days[tomorrowStr]);
   if (!html) { card.style.display = 'none'; return; }
-  document.getElementById('win').innerHTML = html; document.getElementById('winsub').textContent = `plage de niveau ${fmt(plage.nmin)} → ${fmt(plage.nmax)} (bonnes sessions ± tolérance) · prévision horaire SPINE${SPINE_H.adj ? ' corrigée' : ''} · indicatif`;
+  document.getElementById('win').innerHTML = html; document.getElementById('winsub').textContent = `plage de niveau ${fmt(plage.nmin)} → ${fmt(plage.nmax)} (bonnes sessions ± tolérance) · ` + (prob ? 'heures où le niveau a au moins 1 chance sur 2 d’être dans la plage, d’après la prévision horaire du site et ses erreurs passées · indicatif' : `prévision horaire SPINE${SPINE_H.adj ? ' corrigée' : ''} · indicatif`);
   card.style.display = '';
 }
 (async () => {
@@ -450,6 +460,7 @@ fetch('data.json?t=' + Date.now()).then(r => r.json()).then(d => {
   if (d.discharge) { liveQ = d.discharge.value; val('disch', d.discharge.value.toLocaleString('fr-CA'), 'm³/s'); document.getElementById('dischtime').textContent = 'ECCC 02OA016 · ' + fwhen(d.discharge.time); } else document.getElementById('dischtime').textContent = 'indisponible';
   markIdeal();
   SPINE_H = (d.spine_adj && d.spine_adj.length) ? d.spine_adj : d.spine_hourly; if (SPINE_H) SPINE_H.adj = !!(d.spine_adj && d.spine_adj.length);
+  HFC = d.hourly_fc || null; QP = d.hourly_qp || null; idealWindow();
   if (d.discharge_bdf) { liveBdf = d.discharge_bdf.value; val('dbdf', d.discharge_bdf.value.toLocaleString('fr-CA'), 'm³/s'); document.getElementById('dbdftime').textContent = 'ECCC 02OA003 · ' + fwhen(d.discharge_bdf.time); } else document.getElementById('dbdftime').textContent = 'indisponible';
   const a = d.air;
   if (a) { val('atemp', dec(a.temp, 1), '°C'); document.getElementById('atempsub').textContent = 'ressenti ' + dec(a.feels, 0) + NB + '°C · ' + fwhen(a.time); } else document.getElementById('atempsub').textContent = 'indisponible';
@@ -486,6 +497,7 @@ fetch('data.json?t=' + Date.now()).then(r => r.json()).then(d => {
     const word = dq > 0 ? 'hausse' : 'baisse'; return { dir: dq > 0 ? 'up' : 'down', word, amp, txt: word + ' ' + amp }; };
   document.getElementById('rows').innerHTML = f.map(x => { const q = qmap[x.date], today = x.date === todayStr; return `<tr${today ? ' class="today"' : ''}><td>${fdate(x.date)}${today ? '<span class="tag"><span class="tw">aujourd’hui, </span>estimé</span>' : ''}</td><td class="n lvl">${sgn(x.level)}</td><td class="n">${dec(x.margin)}</td><td class="n">${sgn(x.level - x.margin)} à ${sgn(x.level + x.margin)}</td><td class="n">${x.spine == null ? '–' : sgn(x.spine)}</td><td>${q ? trendHTML(trendQ(q.q), true) + (q.src === 'persistance' ? ' *' : '') : '–'}</td></tr>`; }).join('');
   if (qf.length && q0 != null) { const last = qf[qf.length - 1]; const q7 = (d.qskill || {})['7']; document.getElementById('qarrow').innerHTML = trendHTML(trendQ(last.q)) + ' sur 7 jours' + (q7 ? ' · sens juste ' + (q7.hit*100).toFixed(0) + NB + '% des fois' : ''); document.getElementById('qtrend').hidden = false; }
+  if (d.hourly_fc && d.hourly_fc.length) note('hournote', 'Prévision heure par heure et pourcentages', `le pointillé du graphique des 24 heures est une prévision du niveau pour chacune des 48 prochaines heures : une formule par échéance, ajustée sur 2020–2026, à partir des dernières heures mesurées à Frontenac, Pointe-Claire, Sainte-Anne-de-Bellevue et Varennes, du niveau 24 heures plus tôt et du modèle journalier. Sur 2026, jamais vue lors de l’ajustement, son erreur typique hors glace est de 2,5 cm à 6 heures, 3,8 cm à 12 heures et 6,1 cm à 24 heures (en gardant simplement le dernier niveau mesuré : 3,0, 4,8 et 7,7 cm). La bande orangée est l’intervalle où le niveau est tombé 8 fois sur 10 dans le passé, à la même échéance. Les pourcentages de la fenêtre idéale viennent des mêmes erreurs passées : la part d’entre elles qui aurait laissé le niveau dans ta plage. Vérifiés sur 2026, ils sont justes hors glace (quand 70 % était annoncé, c’est arrivé environ 7 fois sur 10) et un peu optimistes en période de glace.`);
   if (d.v4) note('intranote', 'Recalage sur les dernières heures (modèle v4)', `depuis le 25 novembre 2026, les prévisions d’aujourd’hui, de demain et d’après-demain partent du modèle v3 du dernier jour complet, puis sont recalées sur les dernières heures mesurées (dernière mesure : ${+d.v4.last_obs.slice(11, 13)} h) à Frontenac, Pointe-Claire, Sainte-Anne-de-Bellevue et Varennes : moyennes des 3 et des 24 dernières heures, pente sur 6 heures et moyenne partielle du jour. Un jeu de coefficients par heure, ajusté sur 2020–2026. Sur 2026, que ni v3 ni v4 n’avaient vue (v4 ajusté alors sur 2020–2025), l’erreur typique hors glace pour demain passe de 7,5 à 6,3 cm le matin, de 6,8 à 5,5 cm l’après-midi et de 5,4 à 3,8 cm le soir. Si une mesure manque, le site revient à v3 avec l’ajustement en cours de journée.`);
   else if (d.intraday) note('intranote', 'Ajustement en cours de journée', `à ${d.intraday.hour} h, la moyenne des ${d.intraday.n} heures déjà mesurées aujourd’hui (${fmt(d.intraday.partial)}) est comparée à ce que le modèle prévoyait pour aujourd’hui (${fmt(d.intraday.model_today)}). L’écart (${dec(100 * d.intraday.x, 1)} cm) corrige l’estimation d’aujourd’hui et les prévisions des jours suivants avec des coefficients calibrés heure par heure sur 2020–2025 (erreur typique de la prévision de demain : 10,5 cm sans ajustement → 7,7 cm à 10 h, 6,7 cm à 17 h). Après 18 h, la journée devient le jour J et le modèle repart sur des moyennes complètes.`);
   const cb = d.combo || {}; const ck = Object.keys(cb).sort((a, b) => a - b);
@@ -534,16 +546,26 @@ fetch('data.json?t=' + Date.now()).then(r => r.json()).then(d => {
   // Graphique « aujourd'hui » : 24 h au pas de 5 min. Essai en direct auprès de l'API du SHC (si le navigateur l'autorise), sinon copie de la dernière mise à jour.
   const IWLS = 'https://api-iwls.dfo-mpo.gc.ca/api/v1/stations/5cebf1e03d0f4a073c4bbdee/data';
   const iso = x => x.toISOString().slice(0, 19) + 'Z';
+  // prévision horaire des 24 prochaines heures (orangé pointillé) et bande où le niveau tombe 8 fois sur 10 (quantiles 10 % et 90 % des erreurs passées)
+  const fcSets = pts => { if (!d.hourly_fc || !d.hourly_fc.length || !d.hourly_qp || !pts.length) return [];
+    const i10 = d.hourly_qp.indexOf(0.1), i90 = d.hourly_qp.indexOf(0.9), last = pts[pts.length - 1];
+    const f = d.hourly_fc.map(p => ({ x: new Date(p.t).getTime(), y: p.v, lo: p.v + p.q[i10], hi: p.v + p.q[i90] })).filter(p => p.x > last.x && p.x <= last.x + 24 * 3600e3);
+    if (!f.length) return [];
+    document.getElementById('daytitle').textContent = '24 dernières heures et 24 prochaines'; document.getElementById('daysub').textContent = 'mesuré au pas de 5 minutes · prévu heure par heure (pointillé), bande : 8 chances sur 10';
+    const start = { x: last.x, y: last.y, lo: last.y, hi: last.y }, band = { band: true, borderWidth: 0, pointRadius: 0, pointHoverRadius: 0, tension: 0.3 };
+    return [{ label: 'Prévu', fc: true, data: [start].concat(f), borderColor: C_FC, backgroundColor: C_FC, borderDash: [5, 4], pointRadius: 0, pointHoverRadius: 4, borderWidth: 2, tension: 0.3 },
+            Object.assign({ label: 'haut', data: [start].concat(f).map(p => ({ x: p.x, y: p.hi })), fill: '+1', backgroundColor: C_BAND }, band),
+            Object.assign({ label: 'bas', data: [start].concat(f).map(p => ({ x: p.x, y: p.lo })) }, band)]; };
   const drawDay = (pts, src) => {
     document.getElementById('finesrc').textContent = src;
     new Chart(document.getElementById('chartday'), {
       type: 'line', plugins: [graduations],
-      data: { datasets: [{ label: 'Niveau observé (5 min)', data: pts, borderColor: C_TXT, backgroundColor: C_TXT, pointRadius: 0, pointHoverRadius: 4, borderWidth: 1.5, tension: 0.2 }] },
+      data: { datasets: [{ label: 'Mesuré', data: pts, borderColor: C_TXT, backgroundColor: C_TXT, pointRadius: 0, pointHoverRadius: 4, borderWidth: 1.5, tension: 0.2 }].concat(fcSets(pts)) },
       options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'nearest', axis: 'x', intersect: false }, parsing: false,
         scales: { x: { type: 'time', time: { unit: 'hour', stepSize: MOB ? 4 : 2 }, border: { display: false }, grid: { display: false }, ticks: { font: tickFont, callback: v => new Date(v).getHours() + ' h', maxRotation: 0, autoSkip: true, autoSkipPadding: 16, maxTicksLimit: MOB ? 7 : 13 } },   // les heures s'espacent d'elles-mêmes quand la trace est étroite
                   y: yAxis() },
         plugins: { legend: { display: false },
-          tooltip: { displayColors: false, callbacks: { title: items => new Date(items[0].parsed.x).toLocaleString('fr-CA', { weekday: 'short', hour: 'numeric', minute: '2-digit' }), label: c => sgn(c.parsed.y, 3) + NB + 'm' } } } }
+          tooltip: { displayColors: false, filter: i => !i.dataset.band, callbacks: { title: items => new Date(items[0].parsed.x).toLocaleString('fr-CA', { weekday: 'short', hour: 'numeric', minute: '2-digit' }), label: c => c.dataset.fc ? 'Prévu : ' + sgn(c.parsed.y, 2) + NB + 'm (8 chances sur 10 : ' + sgn(c.raw.lo, 2) + ' à ' + sgn(c.raw.hi, 2) + ')' : sgn(c.parsed.y, 3) + NB + 'm' } } } }
     });
   };
   (async () => {
