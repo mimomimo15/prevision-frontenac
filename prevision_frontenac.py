@@ -99,6 +99,53 @@ def forecast_v3(J, feats, fallback):
     return out, used
 
 
+# Modèle v4 : la prévision v3 du dernier jour complet (D−1) est recalée sur les dernières heures mesurées (coefs_v4.json).
+# Un jeu de coefficients par nombre d'heures du jour D déjà mesurées (h = 1..24) et par jour visé (D, D+1, D+2, D+3).
+# Variables : moyennes des 3 et 24 dernières heures et pente sur 6 h à Frontenac, Pointe-Claire, Sainte-Anne et Varennes,
+# moyenne partielle du jour à Frontenac. Ajusté sur 2020-2026 (analyse/fit_v4.py), validé sur 2026 jamais vue.
+_V4_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "coefs_v4.json")
+V4 = json.load(open(_V4_PATH)) if os.path.exists(_V4_PATH) else None
+V4_DATUM = {"fr": 0.0, "pc": DATUM["pc"], "sa": DATUM["sa"], "var": 0.0}
+
+
+def v4_features(hr, D, h, pbase, p_today):
+    """Variables v4. hr = {"fr"|"pc"|"sa"|"var": {datetime locale (heure ronde): niveau au zéro des cartes}} ;
+    D = jour (heure locale) de la dernière mesure, h = nombre d'heures de D mesurées (1..24) ;
+    pbase = prévision v3 émise avec le jour D−1 pour le jour visé, p_today = celle pour le jour D. None si une variable manque."""
+    t = dt.datetime.combine(D, dt.time()) + dt.timedelta(hours=h)      # première heure pas encore mesurée
+
+    def win(c, a, b):
+        v = [hr[c][t - dt.timedelta(hours=i)] for i in range(b + 1, a + 1) if (t - dt.timedelta(hours=i)) in hr[c]]
+        return (sum(v) / len(v) + V4_DATUM[c]) if len(v) >= max(1, int(0.66 * (a - b))) else None
+
+    f = {"pbase": pbase, "p_today": p_today, "ice": is_ice(D)}
+    for c in ("fr", "pc", "sa", "var"):
+        r3, r24, old = win(c, 3, 0), win(c, 24, 0), win(c, 9, 6)
+        if r3 is None or r24 is None or old is None: return None
+        f[c + "_r3"] = r3; f[c + "_r24"] = r24; f[c + "_sl6"] = r3 - old
+    if h >= 2:
+        v = [hr["fr"][dt.datetime.combine(D, dt.time()) + dt.timedelta(hours=i)] for i in range(h) if (dt.datetime.combine(D, dt.time()) + dt.timedelta(hours=i)) in hr["fr"]]
+        if len(v) < h - 1: return None
+        f["fr_part"] = sum(v) / len(v)
+    else:
+        f["fr_part"] = f["fr_r3"]
+    return f
+
+
+def forecast_v4(hr, D, h, base):
+    """base = niveaux v3 émis avec le jour D−1 pour D, D+1, ... (liste). Renvoie {décalage du jour visé: (niveau, marge p90)}."""
+    out = {}
+    if not V4 or str(h) not in V4["h"] or not base: return out
+    for tg, c in V4["h"][str(h)].items():
+        k = int(tg)
+        if k >= len(base): continue
+        f = v4_features(hr, D, h, base[k], base[0])
+        if f is None: continue
+        lvl = c["coef"][0] + sum(b * f[n] for b, n in zip(c["coef"][1:], V4["features"]))
+        out[k] = (lvl, c["p90_ice"] if is_ice(D + dt.timedelta(days=k)) else c["p90_free"])
+    return out
+
+
 def fetch_eccc_daily(station, prop="LEVEL"):
     """Moyennes journalières (heure de l'Est) d'une variable ECCC temps réel (~30 jours). {} si indisponible."""
     acc = defaultdict(list)

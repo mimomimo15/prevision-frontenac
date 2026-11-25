@@ -199,20 +199,24 @@ def main():
             for r in csv.DictReader(f): AUXD[dt.date.fromisoformat(r["date"])] = {k: (float(v) if v not in ("", None) else None) for k, v in r.items() if k != "date"}
     except FileNotFoundError:
         pass
-    def replay(Jp):
-        """Prévision 7 jours telle que le site l'aurait émise le jour Jp avec les seules données de ce jour-là (sans ajustement intrajournalier)."""
+    def replay(Jp, info=False):
+        """Prévision 7 jours telle que le site l'aurait émise le jour Jp avec les seules données de ce jour-là (sans ajustement intrajournalier).
+        Avec info=True : (liste, horizons calculés par v3)."""
+        r, used = _replay(Jp)
+        return (r, used) if info else r
+    def _replay(Jp):
         Jp1 = Jp - dt.timedelta(days=1); Jp2 = Jp - dt.timedelta(days=2); Jp3 = Jp - dt.timedelta(days=3)
-        if Jp not in hist or Jp1 not in hist or any(hist[x][k] is None for x in (Jp, Jp1) for k in ("frontenac_zc", "pointeclaire_igld85", "steanne_igld85")): return None
+        if Jp not in hist or Jp1 not in hist or any(hist[x][k] is None for x in (Jp, Jp1) for k in ("frontenac_zc", "pointeclaire_igld85", "steanne_igld85")): return None, []
         hp, hp1 = hist[Jp], hist[Jp1]; args = (Jp, hp["frontenac_zc"], hp["pointeclaire_igld85"], hp1["pointeclaire_igld85"], hp["steanne_igld85"], hp1["steanne_igld85"])
-        if not all(x in br for x in (Jp, Jp1, Jp2)): return pf.forecast(*args)[1]
+        if not all(x in br for x in (Jp, Jp1, Jp2)): return pf.forecast(*args)[1], []
         f2 = pf.forecast_v2(*args, br[Jp], br[Jp1], br[Jp2])
-        if not pf.V3: return f2
+        if not pf.V3: return f2, []
         g = lambda d, k: AUXD.get(d, {}).get(k)
         dif = lambda k, d0, d1, sc=1: ((g(d0, k) - g(d1, k)) / sc) if g(d0, k) is not None and g(d1, k) is not None else None
         extra = {"dhull": dif("hull", Jp, Jp1), "dlan": dif("lan", Jp, Jp1), "dms_": dif("ms", Jp, Jp1, 1000), "dvar": dif("var", Jp, Jp1),
                  "ri_Q_k": (g(Jp, "ri") / 1000) if g(Jp, "ri") is not None else None, "fr_aft": g(Jp, "fr_aft"), "fr_slope": g(Jp, "fr_slope"), "pc_slope": g(Jp, "pc_slope"),
                  "fr_l2": hist[Jp2]["frontenac_zc"] if Jp2 in hist else None, "dfr": hp["frontenac_zc"] - hp1["frontenac_zc"], "pc_l3": hist[Jp3]["pointeclaire_igld85"] if Jp3 in hist else None}
-        return pf.forecast_v3(Jp, pf.v3_features(*args, br[Jp], br[Jp1], br[Jp2], extra), f2)[0]
+        return pf.forecast_v3(Jp, pf.v3_features(*args, br[Jp], br[Jp1], br[Jp2], extra), f2)
     spine = {}
     try:
         spine = pf.fetch_iwls_daily("fr", J + dt.timedelta(days=1), J + dt.timedelta(days=7), series="wlf-spine")
@@ -285,10 +289,40 @@ def main():
                 print(f"ajustement intrajournalier à {hnow} h : moyenne partielle {part:+.3f}, modèle {p1:+.3f}, écart {x:+.3f}")
     except Exception as e:
         print("ajustement intrajournalier impossible :", e)
-    # archives (pour évaluer plus tard la précision de SPINE et du modèle) : 7 lignes par exécution chacune
+    # ---- modèle v4 : la prévision v3 du dernier jour complet est recalée sur les dernières heures mesurées (Frontenac,
+    # Pointe-Claire, Sainte-Anne, Varennes), avec un jeu de coefficients par heure (coefs_v4.json). Remplace, pour
+    # aujourd'hui, demain et après-demain (et J+3 avant 18 h), la prévision v3 + ajustement intrajournalier, qui reste
+    # le repli si une donnée manque ou si la dernière mesure a plus de 3 heures. L'ancienne chaîne reste archivée à part.
+    fc_v3 = list(fc); v4_info = None
+    try:
+        if pf.V4:
+            import requests
+            t1 = dt.datetime.utcnow(); t0 = t1 - dt.timedelta(hours=60); hr = {}
+            pf.ST["var"] = ST_VAR
+            for code in ("fr", "pc", "sa", "var"):
+                r = requests.get(f"{pf.API}/{pf.ST[code]}/data", timeout=40, params={"time-series-code": "wlo", "from": t0.strftime("%Y-%m-%dT%H:%M:%SZ"), "to": t1.strftime("%Y-%m-%dT%H:%M:%SZ"), "resolution": "SIXTY_MINUTES"})
+                r.raise_for_status()
+                hr[code] = {dt.datetime.strptime(p["eventDate"][:13], "%Y-%m-%dT%H") + pf.TZ: p["value"] for p in r.json()}
+            tl = max(hr["fr"]); D4 = tl.date(); h4 = tl.hour + 1
+            if now - tl > dt.timedelta(hours=3): raise RuntimeError(f"dernière mesure trop ancienne ({tl})")
+            base, used = replay(D4 - dt.timedelta(days=1), info=True)
+            if not base or not all(k in used for k in (1, 2, 3, 4)): raise RuntimeError("v3 du dernier jour complet indisponible")
+            v4 = pf.forecast_v4(hr, D4, h4, [l for d, l, m in base]); new = []; done = []
+            for d, l, m in fc:
+                k = (d - D4).days
+                if k in v4 and not (k == 3 and now.hour >= 18): new.append((d, v4[k][0], v4[k][1])); done.append(k)
+                else: new.append((d, l, m))
+            if done:
+                fc = new; v4_info = {"day": D4.isoformat(), "hours": h4, "last_obs": tl.strftime("%Y-%m-%dT%H:%M"), "targets": done}
+                print(f"v4 : {h4} h mesurées le {D4}, jours recalés : {done}")
+    except Exception as e:
+        print("v4 impossible (repli sur v3) :", e)
+    # archives (pour évaluer plus tard la précision de SPINE et du modèle) : 7 lignes par exécution chacune ;
+    # forecast_archive.csv = prévision publiée (v4 quand il s'applique), forecast_archive_v3.csv = ancienne chaîne (v3 + intrajournalier)
     issued = dt.datetime.utcnow().strftime("%Y-%m-%dT%H:%MZ")
     for name, rows in (("spine_archive.csv", [(d.isoformat(), spine[d]) for d in sorted(spine)]),
-                       ("forecast_archive.csv", [(d.isoformat(), l) for d, l, m in fc])):
+                       ("forecast_archive.csv", [(d.isoformat(), l) for d, l, m in fc]),
+                       ("forecast_archive_v3.csv", [(d.isoformat(), l) for d, l, m in fc_v3])):
         p = os.path.join(DOCS, name); new = not os.path.exists(p)
         with open(p, "a", newline="", encoding="utf-8") as f:
             w = csv.writer(f)
@@ -576,7 +610,7 @@ def main():
         "residual": round(res, 3), "ice": pf.is_ice(J), "model": model_used, "britannia_q": (round(br[J]) if J in br else None), "live": live, "water_temp": water_temp, "discharge": discharge,
         "partial_today": (round(partial["frontenac_zc"], 3) if partial and partial["frontenac_zc"] is not None else None),
         "history": [{"date": d.isoformat(), "obs": round(hist[d]["frontenac_zc"], 3)} for d in days60], "compare": compare, "hourly": hourly, "fine": fine, "spine_hourly": spine_hourly, "spine_adj": spine_adj, "skill": skill, "stat_skill": stat_skill, "q_forecast": q_fc, "qskill": qskill, "discharge_bdf": discharge_bdf, "air": air, "ms_flow": ms_flow, "q_anchor_day": (round(q_las[J]) if J in q_las else None),
-        "forecast": [{"date": d.isoformat(), "level": round(l, 3), "margin": round(m, 3), "spine": (round(spine[d], 3) if d in spine else None)} for d, l, m in fc], "intraday": intraday, "combo": combo, "v3_horizons": v3_used, "v3_inputs": aux_today,
+        "forecast": [{"date": d.isoformat(), "level": round(l, 3), "margin": round(m, 3), "spine": (round(spine[d], 3) if d in spine else None)} for d, l, m in fc], "intraday": intraday, "v4": v4_info, "combo": combo, "v3_horizons": v3_used, "v3_inputs": aux_today,
     }
     with open(os.path.join(DOCS, "data.json"), "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=1)
