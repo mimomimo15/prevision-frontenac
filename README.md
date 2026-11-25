@@ -10,6 +10,8 @@ Site statique (GitHub Pages) mis à jour automatiquement deux fois par jour par 
   prévision v3 du dernier jour complet sur les dernières heures mesurées ; v3 + ajustement intrajournalier reste le repli.
 - `coefs_horaire.json` – prévision heure par heure (48 h) et quantiles de ses erreurs passées, d'où viennent les pourcentages
   de la fenêtre idéale (`analyse/fit_horaire.py eval|calib|export|parite|spine`).
+- `docs/modele.js` – le même calcul (v4 + horaire) refait dans le navigateur avec les mesures en direct du SHC quand elles sont
+  plus récentes que le dernier passage du robot ; `python analyse/parite_js.py` vérifie qu'il donne les mêmes valeurs (Node requis).
 - `analyse/` – reconstitution des données 2019-2026 et tests des modèles :
   `python analyse/telecharger.py` (données publiques, dans `analyse/data/`, non versionné ; besoin de `requests` et `numpy`),
   puis depuis `analyse/` : `python fit_v4.py eval` (site actuel contre v4, par année), `python fit_v4.py export`

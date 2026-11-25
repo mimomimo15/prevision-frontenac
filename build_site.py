@@ -293,7 +293,15 @@ def main():
     # Pointe-Claire, Sainte-Anne, Varennes), avec un jeu de coefficients par heure (coefs_v4.json). Remplace, pour
     # aujourd'hui, demain et après-demain (et J+3 avant 18 h), la prévision v3 + ajustement intrajournalier, qui reste
     # le repli si une donnée manque ou si la dernière mesure a plus de 3 heures. L'ancienne chaîne reste archivée à part.
-    fc_v3 = list(fc); v4_info = None; hourly_fc = []
+    fc_v3 = list(fc); v4_info = None; hourly_fc = []; v4_base = None
+    # le navigateur refait ce calcul avec les mesures en direct (docs/modele.js) : il lui faut les coefficients et la base v3
+    try:
+        import shutil
+        for name in ("coefs_v4.json", "coefs_horaire.json"):
+            src = os.path.join(os.path.dirname(os.path.abspath(__file__)), name)
+            if os.path.exists(src): shutil.copyfile(src, os.path.join(DOCS, name))
+    except Exception as e:
+        print("copie des coefficients impossible :", e)
     try:
         if pf.V4:
             import requests
@@ -307,6 +315,7 @@ def main():
             if now - tl > dt.timedelta(hours=3): raise RuntimeError(f"dernière mesure trop ancienne ({tl})")
             base, used = replay(D4 - dt.timedelta(days=1), info=True)
             if not base or not all(k in used for k in (1, 2, 3, 4)): raise RuntimeError("v3 du dernier jour complet indisponible")
+            v4_base = {"day": D4.isoformat(), "levels": [round(l, 4) for d, l, m in base]}     # v3 émis avec le jour D−1, pour D, D+1, ...
             v4 = pf.forecast_v4(hr, D4, h4, [l for d, l, m in base]); new = []; done = []
             for d, l, m in fc:
                 k = (d - D4).days
@@ -627,7 +636,7 @@ def main():
         "residual": round(res, 3), "ice": pf.is_ice(J), "model": model_used, "britannia_q": (round(br[J]) if J in br else None), "live": live, "water_temp": water_temp, "discharge": discharge,
         "partial_today": (round(partial["frontenac_zc"], 3) if partial and partial["frontenac_zc"] is not None else None),
         "history": [{"date": d.isoformat(), "obs": round(hist[d]["frontenac_zc"], 3)} for d in days60], "compare": compare, "hourly": hourly, "fine": fine, "spine_hourly": spine_hourly, "spine_adj": spine_adj, "skill": skill, "stat_skill": stat_skill, "q_forecast": q_fc, "qskill": qskill, "discharge_bdf": discharge_bdf, "air": air, "ms_flow": ms_flow, "q_anchor_day": (round(q_las[J]) if J in q_las else None),
-        "forecast": [{"date": d.isoformat(), "level": round(l, 3), "margin": round(m, 3), "spine": (round(spine[d], 3) if d in spine else None)} for d, l, m in fc], "intraday": intraday, "v4": v4_info, "hourly_fc": hourly_fc, "hourly_qp": (pf.VH["qp"] if pf.VH and hourly_fc else None), "combo": combo, "v3_horizons": v3_used, "v3_inputs": aux_today,
+        "forecast": [{"date": d.isoformat(), "level": round(l, 3), "margin": round(m, 3), "spine": (round(spine[d], 3) if d in spine else None)} for d, l, m in fc], "intraday": intraday, "v4": v4_info, "v4_base": v4_base, "hourly_fc": hourly_fc, "hourly_qp": (pf.VH["qp"] if pf.VH and hourly_fc else None), "combo": combo, "v3_horizons": v3_used, "v3_inputs": aux_today,
     }
     with open(os.path.join(DOCS, "data.json"), "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=1)
